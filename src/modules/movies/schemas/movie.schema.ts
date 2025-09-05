@@ -84,6 +84,9 @@ export class Movie {
   @Prop({ type: String })
   origin_name: string;
 
+  @Prop({ type: Boolean })
+  is_cinema: boolean;
+
   @Prop({ type: String })
   content: string;
 

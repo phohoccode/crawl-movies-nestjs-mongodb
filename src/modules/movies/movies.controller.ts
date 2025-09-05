@@ -1,22 +1,24 @@
-import { Controller, Get } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  Query,
+} from '@nestjs/common';
 import { MoviesService } from './movies.service';
+
+import { GetMoviesDto } from './dto/get-movies.dto';
 
 @Controller('movies')
 export class MoviesController {
   constructor(private readonly moviesService: MoviesService) {}
 
-  @Get('startCrawlMovies')
-  startCrawlMovies() {
-    return this.moviesService.handleStartCrawlMovies();
-  }
+  @Get()
+  async getMovies(@Query() query: GetMoviesDto) {
 
-  @Get('startCrawlSlugs')
-  startCrawlSlugs() {
-    return this.moviesService.handleStartCrawlSlugs();
-  }
-
-  @Get('initializeCrawlStatus')
-  initializeCrawlStatus() {
-    return this.moviesService.initializeCrawlStatus();
+    return this.moviesService.getMovies(query);
   }
 }

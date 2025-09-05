@@ -4,6 +4,7 @@ import { AppService } from './app.service';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MoviesModule } from '@/modules/movies/movies.module';
+import { CrawlModule } from './modules/crawl/crawl.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { MoviesModule } from '@/modules/movies/movies.module';
       }),
     }),
     MoviesModule,
+    CrawlModule,
   ],
   controllers: [AppController],
   providers: [AppService],
