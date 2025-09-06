@@ -451,142 +451,124 @@ export class CrawlService {
     }
   }
 
-  async handleStartCrawlMovies() {
+  async findSlugNotInMovies() {
     try {
-      const crawStatus = await this.fetchCrawlStatus();
-      const { arrHasCrawled, arrNotCrawled } = this.movieHasCrawled(
-        crawStatus?.movieTypes || [],
+      return await this.slugModel.aggregate([
+        {
+          $lookup: {
+            from: 'movies', // bảng (collection) để join (ở đây là 'movies')
+            localField: 'slug', // field trong collection hiện tại (slugModel) dùng để so khớp
+            foreignField: 'slug', // field bên collection 'movies' dùng để so khớp
+            as: 'movieInfo', // kết quả join sẽ đưa vào một mảng mới có tên là 'movieInfo'
+          },
+        },
+        {
+          $match: {
+            movieInfo: { $size: 0 }, // chỉ lấy các document mà movieInfo rỗng (tức là slug không tồn tại trong 'movies')
+          },
+        },
+        {
+          $project: { slug: 1, _id: 0 }, // chỉ hiển thị trường 'slug', ẩn _id đi
+        },
+      ]);
+    } catch (error) {
+      console.log('>>> Lỗi khi tìm slug chưa có trong movies:', error);
+      return [];
+    }
+  }
+
+  async crawlMoviesInPage(
+    j: number,
+    totalPages: number,
+    slugs: string[],
+    limit: any,
+  ) {
+    console.log(`📄 Đang thu thập phim tại trang ${j} / ${totalPages}`);
+
+    if (!slugs || slugs.length === 0) {
+      console.log(
+        `⚠️ Trang ${j} không có slug nào để thu thập. Bỏ qua sau 300ms...\n`,
       );
+      await this.sleep(300);
+      return;
+    }
 
-      if (arrHasCrawled?.length === this.movieTypes?.length) {
-        console.log('🎉 SUCCESS: All movie types have been crawled!');
-        console.log('═'.repeat(60) + '\n');
-        return { status: '✅ Tất cả các loại phim đã được thu thập.' };
-      }
+    const tasks = slugs.map((slug, i) =>
+      limit(async () => {
+        try {
+          const movieDetail = await this.fetchMovieDetail(slug);
 
-      // Đánh dấu đang trong trạng thái crawling
-      await this.setIsCrawling(true);
-      console.log('🔄 STATUS: Crawling mode activated');
-      console.log('');
+          if (!movieDetail?.status) {
+            console.log(`❌ Không tìm thấy phim với slug: ${slug}`);
+            return { slug, status: 'not_found' };
+          }
 
-      for (let i = 0; i < arrNotCrawled.length; i++) {
-        const crawStatus = await this.fetchCrawlStatus();
-        const type = arrNotCrawled[i];
+          const isNew = await this.saveMovieToDb(movieDetail);
+          const progress = `${i + 1}/${slugs.length}`;
 
-        // Lấy thông tin phân trang
-        const movieData = await this.fetchDataMovie(
-          type || MovieType.PHIM_BO,
-          this.limit,
-          crawStatus?.currentPage || 1,
-        );
-
-        if (!movieData) {
-          console.log(
-            `❌ Không lấy được dữ liệu phim cho loại: ${type}, bỏ qua...`,
-          );
-          continue;
-        }
-
-        const totalPages: number =
-          movieData?.params?.pagination?.totalPages || 0;
-
-        this.showInfoCrawl(
-          type,
-          arrNotCrawled[i + 1] || arrNotCrawled[0],
-          totalPages,
-        );
-
-        const limit = pLimit(10);
-
-        for (let j = crawStatus?.currentPage || 1; j <= totalPages; j++) {
-          console.log(`📄 Đang thu thập phim tại trang ${j} / ${totalPages}`);
-
-          const slugs = await this.fetchSlugs(100, j, type);
-
-          if (!slugs || slugs.length === 0) {
+          if (isNew) {
             console.log(
-              `⚠️ Trang ${j} không có slug nào để thu thập. Bỏ qua sau 300ms...\n`,
+              `✅ [${progress}] Phim: ${movieDetail.movie.name} đã được lưu vào hệ thống`,
             );
-            await this.sleep(300);
-            continue;
+          } else {
+            console.log(
+              `⚠️ [${progress}] Phim ${movieDetail.movie.name} đã tồn tại trong hệ thống`,
+            );
           }
 
-          const tasks = slugs.map((slug, i) =>
-            limit(async () => {
-              try {
-                const movieDetail = await this.fetchMovieDetail(slug);
-
-                if (!movieDetail) {
-                  return { slug, status: 'not_found' };
-                }
-
-                const isNew = await this.saveMovieToDb(movieDetail);
-                const progress = `${i + 1}/${slugs.length}`;
-
-                if (isNew) {
-                  console.log(
-                    `✅ [${progress}] Phim: ${movieDetail.movie.name} đã được lưu vào hệ thống`,
-                  );
-                } else {
-                  console.log(
-                    `⚠️ [${progress}] Phim ${movieDetail.movie.name} đã tồn tại trong hệ thống`,
-                  );
-                }
-
-                return { slug, status: isNew ? 'success' : 'already_exist' };
-              } catch (err) {
-                console.error(`  🔥 Lỗi xử lý slug ${slug}:`, err.message);
-                return { slug, status: 'error', error: err };
-              }
-            }),
-          );
-
-          const results = await Promise.allSettled(tasks);
-          this.logCrawlStats(j, slugs, results);
-
-          // Cập nhật trạng thái crawl
-          await this.crawlStatusModel.updateOne(
-            { _id: crawStatus?._id },
-            {
-              $set: {
-                currentPage: j,
-                totalPages,
-                totalMovies: movieData?.params?.pagination?.totalItems || 0,
-              },
-            },
-          );
-
-          if (j < totalPages) {
-            console.log('⏳ Delay 3s trước khi qua trang tiếp theo...');
-            await this.sleep(3000);
-          }
+          return { slug, status: isNew ? 'success' : 'already_exist' };
+        } catch (err) {
+          console.error(`  🔥 Lỗi xử lý slug ${slug}:`, err.message);
+          return { slug, status: 'error', error: err };
         }
+      }),
+    );
 
-        // Cập nhật loại phim đã thu thập xong
-        const updated = await this.updateMovieTypesInCrawlStatus(type);
+    const results = await Promise.allSettled(tasks);
+    this.logCrawlStats(j, slugs, results);
 
-        if (updated) {
-          console.log(`🎉 Hoàn tất thu thập phim cho loại: ${type}`);
-          console.log(
-            '⏳ Delay 3s trước khi chuyển sang loại phim tiếp theo...',
-          );
-          await this.sleep(3000);
-        } else {
-          console.log(`❌ Không thể cập nhật trạng thái cho loại phim ${type}`);
-          continue;
-        }
+    if (j < totalPages) {
+      console.log('⏳ Delay 3s trước khi qua trang tiếp theo...');
+      await this.sleep(3000);
+    }
+  }
+
+  async handleCrawlMovies() {
+    try {
+      const slugsNotInMovies = await this.findSlugNotInMovies();
+      const limit = pLimit(10);
+      const totalPages = Math.ceil(slugsNotInMovies.length / 100);
+
+      if (slugsNotInMovies?.length === 0) {
+        console.log('🎉 Không còn phim để crawl');
+        return {
+          status: '🎉 Không còn phim để crawl',
+        };
       }
 
-      await this.setIsCrawling(false);
-      console.log('🎉 Đã hoàn tất quá trình thu thập phim.');
+      console.log(`
+========= CRAWL STATUS =========
+📌 Tổng số phim cần thu thập: ${slugsNotInMovies.length}
+📄 Tổng số trang cần thu thập: ${totalPages}
+================================
+`);
+
+      for (let j = 1; j <= totalPages; j++) {
+        const slugs: string[] = slugsNotInMovies
+          .slice((j - 1) * 100, j * 100) // j = 1 -> 0-99, j=2 -> 100-199
+          .map((item) => item.slug);
+
+        await this.crawlMoviesInPage(j, totalPages, slugs, limit);
+      }
 
       return {
-        status: '✅ Đã thu thập xong tất cả phim trong danh sách slug.',
+        status: '🎉 Đã hoàn tất quá trình crawl phim.',
       };
     } catch (error) {
-      console.error('❌ Lỗi tổng quát khi crawl phim:', error);
-      await this.setIsCrawling(false);
-      return { status: 'Thu thập thông tin phim thất bại!' };
+      console.log('>>> Lỗi khi crawl các phim:', error);
+      return {
+        status: '❌ Lỗi khi crawl các phim.',
+      };
     }
   }
 }

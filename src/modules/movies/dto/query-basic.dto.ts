@@ -1,19 +1,12 @@
-import { IsIn, IsInt, IsNotEmpty, IsOptional, Max, Min } from 'class-validator';
-import { MOVIE_TYPE } from '../constants/movie.contant';
 import { Type } from 'class-transformer';
+import { IsInt, IsOptional, Max, Min } from 'class-validator';
 
-export class GetMoviesDto {
-  @IsNotEmpty({ message: 'Type không được để trống' })
-  @IsIn(MOVIE_TYPE, {
-    message: `Type phải là một trong: ${MOVIE_TYPE.join(', ')}`,
-  })
-  type: string;
-
+export class QueryBasicDto {
   @IsOptional()
-  @Type(() => Number)
   @IsInt({ message: 'Limit phải là một số nguyên' })
   @Min(1, { message: 'Limit tối thiểu là 1' })
   @Max(64, { message: 'Limit tối đa là 64' })
+  @Type(() => Number)
   limit?: number;
 
   @IsOptional()

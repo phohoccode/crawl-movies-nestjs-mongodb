@@ -1,24 +1,77 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Patch,
-  Param,
-  Delete,
-  Query,
-} from '@nestjs/common';
+import { Controller, Get, Param, Query } from '@nestjs/common';
 import { MoviesService } from './movies.service';
 
 import { GetMoviesDto } from './dto/get-movies.dto';
+import { GetMovieBySlugDto } from './dto/get-movie-by-slug.dto';
+import { SearchMoviesDto } from './dto/search-movies.dto';
+import { MovieType } from './types/movie.type';
+import { QueryBasicDto } from './dto/query-basic.dto';
 
 @Controller('movies')
 export class MoviesController {
   constructor(private readonly moviesService: MoviesService) {}
 
-  @Get()
-  async getMovies(@Query() query: GetMoviesDto) {
+  @Get(':type')
+  async getMovies(
+    @Param() params: GetMoviesDto,
+    @Query() query: QueryBasicDto,
+  ) {
+    return this.moviesService.getMovies(
+      params.type as MovieType,
+      +(query?.limit || 10),
+      +(query?.page || 1),
+    );
+  }
 
-    return this.moviesService.getMovies(query);
+  @Get('search')
+  async searchMovies(@Query() searchMovieDto: SearchMoviesDto) {
+    return this.moviesService.searchMovies(
+      searchMovieDto.keyword,
+      +(searchMovieDto?.limit || 10),
+      +(searchMovieDto?.page || 1),
+    );
+  }
+
+  @Get('info/:slug')
+  async getMovieBySlug(@Param() getMovieBySlugDto: GetMovieBySlugDto) {
+    return this.moviesService.getMovieBySlug(getMovieBySlugDto.slug);
+  }
+
+  @Get('genre/:genre')
+  async getMoviesByGenre(
+    @Param('genre') genre: string,
+    @Query() query: QueryBasicDto,
+  ) {
+    return this.moviesService.getMoviesByGenreOrCountry(
+      'genre',
+      genre,
+      +(query?.limit || 10),
+      +(query?.page || 1),
+    );
+  }
+
+  @Get('country/:country')
+  async getMoviesByCountry(
+    @Param('country') country: string,
+    @Query() query: QueryBasicDto,
+  ) {
+    return this.moviesService.getMoviesByGenreOrCountry(
+      'country',
+      country,
+      +(query?.limit || 10),
+      +(query?.page || 1),
+    );
+  }
+
+  @Get('year/:year')
+  async getMoviesByYear(
+    @Param('year') year: string,
+    @Query() query: QueryBasicDto,
+  ) {
+    return this.moviesService.getMoviesByYear(
+      year,
+      +(query?.limit || 10),
+      +(query?.page || 1),
+    );
   }
 }
