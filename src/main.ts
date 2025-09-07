@@ -20,6 +20,13 @@ async function bootstrap() {
     ],
   });
 
+  // config cors
+  app.enableCors({
+    origin: '*',
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+  });
+
+  // config validation pipe
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true, // loại bỏ các thuộc tính không được định nghĩa trong DTO

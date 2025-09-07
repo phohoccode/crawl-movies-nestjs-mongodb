@@ -1,0 +1,23 @@
+services:
+  # Backend app
+  app:
+    container_name: backend
+    build:
+      context: ./
+      dockerfile: Dockerfile
+    env_file:
+      - .env # import tất cả biến từ file .env
+    ports:
+      - "${PORT}:4000"
+    depends_on:
+      - database
+
+  # MongoDB service
+  database:
+    image: mongo:6.0
+    container_name: mongodb
+    restart: always
+    env_file:
+      - .env
+    ports:
+      - "${MONGO_PORT}:27017"

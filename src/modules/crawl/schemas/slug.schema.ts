@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
-import { MovieType } from './crawl-status.schema';
+import { MovieType } from '../constants/crawl.constants';
 
 export type SlugDocument = HydratedDocument<Slug>;
 

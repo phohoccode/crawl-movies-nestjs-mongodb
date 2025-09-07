@@ -1,14 +1,8 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
+import { MovieType } from '../constants/crawl.constants';
 
 export type CrawlStatusDocument = HydratedDocument<CrawlStatus>;
-
-export enum MovieType {
-  PHIM_BO = 'phim-bo',
-  PHIM_LE = 'phim-le',
-  HOAT_HINH = 'hoat-hinh',
-  TV_SHOWS = 'tv-shows',
-}
 
 @Schema({ collection: 'crawl_status' })
 export class CrawlStatus {
@@ -17,9 +11,6 @@ export class CrawlStatus {
 
   @Prop({ type: Boolean, default: false })
   isCrawling: boolean;
-
-  @Prop({ type: Boolean, default: false })
-  shouldStop: boolean;
 
   @Prop({ default: MovieType.PHIM_BO })
   selectedType: MovieType;

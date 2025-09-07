@@ -5,6 +5,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { Movie, MovieSchema } from '@/modules/movies/schemas/movie.schema';
 import { Slug, SlugSchema } from './schemas/slug.schema';
 import { CrawlStatus, CrawlStatusSchema } from './schemas/crawl-status.schema';
+import { CrawlGateway } from './gateway/crawl.gateway';
 
 @Module({
   imports: [
@@ -15,6 +16,6 @@ import { CrawlStatus, CrawlStatusSchema } from './schemas/crawl-status.schema';
     ]),
   ],
   controllers: [CrawlController],
-  providers: [CrawlService],
+  providers: [CrawlService, CrawlGateway],
 })
 export class CrawlModule {}
