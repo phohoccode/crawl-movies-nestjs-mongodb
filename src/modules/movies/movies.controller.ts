@@ -1,4 +1,12 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Query,
+} from '@nestjs/common';
 import { MoviesService } from './movies.service';
 
 import { GetMoviesDto } from './dto/get-movies.dto';
@@ -6,10 +14,17 @@ import { GetMovieBySlugDto } from './dto/get-movie-by-slug.dto';
 import { SearchMoviesDto } from './dto/search-movies.dto';
 import { MovieType } from './types/movie.type';
 import { QueryBasicDto } from './dto/query-basic.dto';
+import { ParamsUpdateMovie, UpdateMovieDto } from './dto/update-movie.dto';
+import { DeleteMoviesDto } from './dto/delete-movies.dto';
 
 @Controller('movies')
 export class MoviesController {
   constructor(private readonly moviesService: MoviesService) {}
+
+  @Get('stats')
+  async getMoviesStats() {
+    return await this.moviesService.getMoviesStats();
+  }
 
   @Get(':type')
   async getMovies(
@@ -73,5 +88,18 @@ export class MoviesController {
       +(query?.limit || 10),
       +(query?.page || 1),
     );
+  }
+
+  @Patch(':id')
+  async updateInfoMovie(
+    @Param() params: ParamsUpdateMovie,
+    @Body() dataUpdate: UpdateMovieDto,
+  ) {
+    return await this.moviesService.updateInfoMovieById(params.id, dataUpdate);
+  }
+
+  @Delete()
+  async deleteMovies(@Body() deleteMoviesDto: DeleteMoviesDto) {
+    return await this.moviesService.deleteMoviesByIds(deleteMoviesDto.ids);
   }
 }

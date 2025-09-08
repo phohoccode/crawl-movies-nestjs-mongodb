@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsInt, IsOptional, Max, Min } from 'class-validator';
+import { IsIn, IsInt, IsOptional, Max, Min } from 'class-validator';
 
 export class CrawlMoviesDto {
   @IsOptional()
@@ -8,4 +8,8 @@ export class CrawlMoviesDto {
   @Min(1, { message: 'Limit tối thiểu là 1' })
   @Max(50, { message: 'Limit tối đa là 50' })
   limit?: number;
+
+  @IsOptional()
+  @IsIn(['create', 'update'], { message: 'Type phải là create hoặc update' })
+  type?: string;
 }

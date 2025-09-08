@@ -12,6 +12,9 @@ export class CrawlStatus {
   @Prop({ type: Boolean, default: false })
   isCrawling: boolean;
 
+  @Prop({ type: String, default: null })
+  action: 'create' | 'update' | null;
+
   @Prop({ default: MovieType.PHIM_BO })
   selectedType: MovieType;
 

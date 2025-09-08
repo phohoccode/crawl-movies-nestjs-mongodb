@@ -14,7 +14,11 @@ export class CrawlGateway {
     this.server.emit('crawlProgress', progress);
   }
 
-  refreshTotalMovies(totalMovies: number) {
-    this.server.emit('refreshTotalMovies', totalMovies);
+  refreshTotalMovies(movieStats: any) {
+    this.server.emit('refreshTotalMovies', movieStats);
+  }
+
+  notifyCrawlStatus(isCrawling: boolean) {
+    this.server.emit('notifyCrawlStatus', isCrawling);
   }
 }
