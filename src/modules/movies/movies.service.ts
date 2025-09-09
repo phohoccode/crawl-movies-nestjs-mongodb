@@ -1,3 +1,9 @@
+import {
+  Categories,
+  CategoriesArray,
+  Countries,
+  CountriesArray,
+} from './types/movie.type';
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/require-await */
 import {
@@ -14,11 +20,14 @@ import {
   NOT_FOUND_ERROR,
 } from './constants/error.contant';
 import { UpdateMovieDto } from './dto/update-movie.dto';
+import { titlePageMapping } from './constants/movie.contant';
+import { Slug, SlugDocument } from '../crawl/schemas/slug.schema';
 
 @Injectable()
 export class MoviesService {
   constructor(
     @InjectModel(Movie.name) private movieModel: Model<MovieDocument>,
+    @InjectModel(Slug.name) private slugModel: Model<SlugDocument>,
   ) {}
 
   async getMoviesFromDb(
@@ -55,18 +64,26 @@ export class MoviesService {
 
   async getMovies(type: MovieType, limit: number, page: number) {
     try {
-      const typeMapping: Record<MovieType, any> = {
+      const typeMapping: Partial<Record<MovieType, any>> = {
         'phim-le': { type: 'single' },
         'phim-bo': { type: 'series' },
         'phim-chieu-rap': { is_cinema: true },
         'hoat-hinh': { type: 'hoathinh' },
-        'tv-shows': { type: 'tvshow' },
+        'tv-shows': { type: 'tvshows' },
         'phim-vietsub': { lang: { $regex: 'Vietsub', $options: 'i' } },
         'phim-thuyet-minh': { lang: { $regex: 'Thuyết minh', $options: 'i' } },
         'phim-long-tieng': { lang: { $regex: 'Lồng tiếng', $options: 'i' } },
       };
 
-      const conditionFilter = typeMapping[type];
+      let conditionFilter = {};
+
+      if (CountriesArray.includes(type as Countries)) {
+        conditionFilter = { countries: { $elemMatch: { slug: type } } };
+      } else if (CategoriesArray.includes(type as Categories)) {
+        conditionFilter = { categories: { $elemMatch: { slug: type } } };
+      } else {
+        conditionFilter = typeMapping[type] || {};
+      }
 
       const data = await this.getMoviesFromDb(conditionFilter, limit, page);
 
@@ -76,13 +93,16 @@ export class MoviesService {
         status: true,
         message: 'Thành công',
         data: {
-          pagination: {
-            total_page: Math.ceil(totals / limit),
-            total_items: totals,
-            current_page: page,
-            limit: limit,
+          params: {
+            pagination: {
+              totalPages: Math.ceil(totals / limit),
+              totalItems: totals,
+              currentPage: page,
+              totalItemsPerPage: limit,
+            },
           },
-          movies,
+          titlePage: titlePageMapping[type] || 'Danh sách phim',
+          items: movies,
         },
       };
     } catch (error) {
@@ -104,10 +124,13 @@ export class MoviesService {
         throw new NotFoundException(NOT_FOUND_ERROR);
       }
 
+      const { episodes, ...finalMovie } = movie;
+
       return {
         status: true,
         message: 'Thành công',
-        data: movie,
+        movie: finalMovie,
+        episodes,
       };
     } catch (error) {
       console.log(error);
@@ -135,49 +158,15 @@ export class MoviesService {
         status: true,
         message: 'Thành công',
         data: {
-          pagination: {
-            total_page: Math.ceil(totals / limit),
-            total_items: totals,
-            current_page: page,
-            limit: limit,
+          params: {
+            pagination: {
+              totalPages: Math.ceil(totals / limit),
+              totalItems: totals,
+              currentPage: page,
+              totalItemsPerPage: limit,
+            },
           },
-          movies,
-        },
-      };
-    } catch (error) {
-      console.log(error);
-      throw new InternalServerErrorException(INTERNAL_SERVER_ERROR);
-    }
-  }
-
-  async getMoviesByGenreOrCountry(
-    type: 'genre' | 'country',
-    slug: string,
-    limit: number,
-    page: number,
-  ) {
-    try {
-      const conditionFilter = {
-        [type === 'genre' ? 'categories' : 'countries']: {
-          $elemMatch: { slug },
-        },
-      };
-
-      const data = await this.getMoviesFromDb(conditionFilter, limit, page);
-
-      const { movies, totals } = data;
-
-      return {
-        status: true,
-        message: 'Thành công',
-        data: {
-          pagination: {
-            total_page: Math.ceil(totals / limit),
-            total_items: totals,
-            current_page: page,
-            limit: limit,
-          },
-          movies,
+          items: movies,
         },
       };
     } catch (error) {
@@ -260,6 +249,7 @@ export class MoviesService {
     try {
       const [
         totalMovies,
+        totalSlugs,
         totalSeries,
         totalSingles,
         totalCinemas,
@@ -267,6 +257,7 @@ export class MoviesService {
         totalAnimations,
       ] = await Promise.allSettled([
         this.movieModel.countDocuments(),
+        this.slugModel.countDocuments(),
         this.movieModel.countDocuments({ type: 'series' }),
         this.movieModel.countDocuments({ type: 'single' }),
         this.movieModel.countDocuments({ is_cinema: true }),
@@ -280,6 +271,7 @@ export class MoviesService {
         data: {
           totalMovies:
             totalMovies.status === 'fulfilled' ? totalMovies.value : 0,
+          totalSlugs: totalSlugs.status === 'fulfilled' ? totalSlugs.value : 0,
           totalSeries:
             totalSeries.status === 'fulfilled' ? totalSeries.value : 0,
           totalSingles:

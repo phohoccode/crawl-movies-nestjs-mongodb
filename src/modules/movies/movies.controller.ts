@@ -26,6 +26,15 @@ export class MoviesController {
     return await this.moviesService.getMoviesStats();
   }
 
+  @Get('search')
+  async searchMovies(@Query() searchMovieDto: SearchMoviesDto) {
+    return this.moviesService.searchMovies(
+      searchMovieDto.keyword,
+      +(searchMovieDto?.limit || 10),
+      +(searchMovieDto?.page || 1),
+    );
+  }
+
   @Get(':type')
   async getMovies(
     @Param() params: GetMoviesDto,
@@ -38,44 +47,9 @@ export class MoviesController {
     );
   }
 
-  @Get('search')
-  async searchMovies(@Query() searchMovieDto: SearchMoviesDto) {
-    return this.moviesService.searchMovies(
-      searchMovieDto.keyword,
-      +(searchMovieDto?.limit || 10),
-      +(searchMovieDto?.page || 1),
-    );
-  }
-
   @Get('info/:slug')
   async getMovieBySlug(@Param() getMovieBySlugDto: GetMovieBySlugDto) {
     return this.moviesService.getMovieBySlug(getMovieBySlugDto.slug);
-  }
-
-  @Get('genre/:genre')
-  async getMoviesByGenre(
-    @Param('genre') genre: string,
-    @Query() query: QueryBasicDto,
-  ) {
-    return this.moviesService.getMoviesByGenreOrCountry(
-      'genre',
-      genre,
-      +(query?.limit || 10),
-      +(query?.page || 1),
-    );
-  }
-
-  @Get('country/:country')
-  async getMoviesByCountry(
-    @Param('country') country: string,
-    @Query() query: QueryBasicDto,
-  ) {
-    return this.moviesService.getMoviesByGenreOrCountry(
-      'country',
-      country,
-      +(query?.limit || 10),
-      +(query?.page || 1),
-    );
   }
 
   @Get('year/:year')

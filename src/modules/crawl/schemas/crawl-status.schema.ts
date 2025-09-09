@@ -20,12 +20,6 @@ export class CrawlStatus {
 
   @Prop({ default: 1 })
   currentPage: number;
-
-  @Prop({ default: 0 })
-  totalMovies: number;
-
-  @Prop({ default: 0 })
-  totalPages: number;
 }
 
 export const CrawlStatusSchema = SchemaFactory.createForClass(CrawlStatus);

@@ -6,19 +6,24 @@ import { CrawlMoviesDto } from '../movies/dto/crawl-movies.dto';
 export class CrawlController {
   constructor(private readonly crawlService: CrawlService) {}
 
-  @Get('resetCrawlStatus')
-  resetCrawlStatus() {
-    return this.crawlService.handleResetCrawlStatus();
-  }
-
   @Get('pauseCrawling')
   async pauseCrawling() {
-    await this.crawlService.setIsCrawling(false);
+    await this.crawlService.handleSetIsCrawing(false);
 
     return {
       status: true,
       message: 'Đã tạm dừng quá trình thu thập.',
       isCrawling: false,
+    };
+  }
+
+  @Get('resetCrawlStatus')
+  async resetCrawlStatus() {
+    await this.crawlService.handleResetCrawlStatus();
+
+    return {
+      status: true,
+      message: 'Đã đặt lại trạng thái cào.',
     };
   }
 
@@ -39,7 +44,7 @@ export class CrawlController {
   @Get('checkIsCrawling')
   async checkIsCrawling() {
     const isCrawling = await this.crawlService.handleCheckIsCrawling();
-    const action = await this.crawlService.checkActionCrawl();
+    const action = await this.crawlService.handleCheckActionCrawl();
 
     return {
       status: isCrawling ? 'Đang cào phim' : 'Đang tạm dừng',
@@ -73,18 +78,6 @@ export class CrawlController {
       isCrawling: true,
       action: query.type,
       message: 'Đã bắt đầu quá trình crawl phim.',
-    };
-  }
-
-  @Get('allCrawledMovies')
-  async getAllCrawledMovies() {
-    const allCrawledMovies = await this.crawlService.fetchTotalMovies();
-    return {
-      status: true,
-      message: 'Lấy danh sách phim đã cào thành công.',
-      data: {
-        total: allCrawledMovies,
-      },
     };
   }
 }

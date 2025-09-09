@@ -4,7 +4,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Movie, MovieDocument } from '@/modules/movies/schemas/movie.schema';
 import { Model } from 'mongoose';
@@ -16,7 +16,13 @@ import {
 } from './schemas/crawl-status.schema';
 import pLimit from 'p-limit';
 import { MOVIE_TYPE, MovieType } from './constants/crawl.constants';
-import { getPages, logCrawlStats, showInfoCrawl } from '@/helpers/util';
+import {
+  fetchWithRetry,
+  getPages,
+  getTimeStamp,
+  logCrawlStats,
+  sleep,
+} from '@/helpers/utils';
 import { CrawlGateway } from './gateway/crawl.gateway';
 import { MoviesService } from '../movies/movies.service';
 
@@ -40,11 +46,22 @@ export class CrawlService {
     this.apiUrl = this.configService.get<string>('API_CRAWL_MOVIES_URL');
   }
 
-  sleep(ms: number) {
-    return new Promise((resolve) => setTimeout(resolve, ms));
+  async fetchMovieDetail(slug: string) {
+    const url = `${this.apiUrl}/phim/${slug}`;
+    const logProgress = (message: string) => this.logProgress(message);
+    const data = await fetchWithRetry(url, 3, logProgress, { slug });
+    return data || null;
   }
 
-  movieHasCrawled(movieTypesFromDb: MovieType[]) {
+  async fetchDataMovie(type: MovieType, limit = 64, page = 1) {
+    const url = `${this.apiUrl}/v1/api/danh-sach/${type}?limit=${limit}&page=${page}`;
+    const logProgress = (message: string) => this.logProgress(message);
+    const data = await fetchWithRetry(url, 3, logProgress, { slug: type });
+    return data || null;
+  }
+
+  // Phân loại các loại phim đã và chưa được crawl
+  handleGroupMovieTypesByCrawl(movieTypesFromDb: MovieType[]) {
     const arrHasCrawled: MovieType[] = [];
     const arrNotCrawled: MovieType[] = [];
 
@@ -59,49 +76,20 @@ export class CrawlService {
     return { arrHasCrawled, arrNotCrawled };
   }
 
-  async fetchWithRetry(
-    url: string,
-    retries = this.maxRetries,
-    options?: RequestInit & { slug?: string },
-  ) {
-    for (let i = 0; i < retries; i++) {
-      try {
-        const timeSleep = Math.pow(2, i) * 1000;
-        const response = await fetch(url, options);
-
-        if (!response.ok) {
-          this.logProgress(
-            `❌ Fetch ${options?.slug} thất bại với status ${response.status}. Thử lại lần ${i + 1}/${this.maxRetries}`,
-          );
-          this.logProgress(`⏳Nghỉ ${timeSleep / 1000}s trước khi thử lại...`);
-          await this.sleep(timeSleep);
-          continue;
-        }
-
-        const data = await response.json();
-
-        return data;
-      } catch (error) {
-        this.logProgress(
-          `❌Fetch thất bại Thử lại lần ${i + 1}/${this.maxRetries}`,
-        );
-        await this.sleep(1000);
-        continue;
-      }
-    }
-  }
-
   logProgress(message: string) {
-    console.log(message);
-    this.crawlGateway.sendProgress(message);
+    const timeStamp = getTimeStamp();
+    const logMessage = `${timeStamp} ${message}`;
+
+    console.log(logMessage);
+    this.crawlGateway.sendProgress(logMessage);
   }
 
-  async updateMovieTypesInCrawlStatus(newType: MovieType) {
+  async handleUpdateMovieTypesInCrawStatus(newType: MovieType) {
     try {
       const crawlStatus = await this.crawlStatusModel.findOne();
 
       if (!crawlStatus) {
-        this.logProgress('❌ Trạng thái thu thập không tồn tại.');
+        this.logProgress('❌ Trạng thái cào không tồn tại.');
         return false;
       }
 
@@ -114,73 +102,29 @@ export class CrawlService {
             movieTypes: [...crawlStatus.movieTypes, newType],
             selectedType: MOVIE_TYPE[index + 1] || MOVIE_TYPE[0],
             currentPage: 1,
-            totalPages: 0,
-            totalMovies: 0,
           },
         );
 
         return result.modifiedCount > 0;
       } else {
         this.logProgress(
-          '⚠️ Loại phim đã được thu thập hoặc không hợp lệ:' + newType,
+          '⚠️ Loại phim đã được cào hoặc không hợp lệ:' + newType,
         );
         return false;
       }
     } catch (error) {
-      this.logProgress('>>> Lỗi khi cập nhật loại phim đã thu thập:' + error);
+      this.logProgress(' Lỗi khi cập nhật loại phim đã cào:' + error);
       return false;
     }
   }
 
-  async fetchMovieDetail(slug: string) {
-    const url = `${this.apiUrl}/phim/${slug}`;
-    const data = await this.fetchWithRetry(url, 3, { slug });
-    return data ?? null;
-  }
-
-  async fetchDataMovie(type: MovieType, limit = 64, page = 1) {
-    const url = `${this.apiUrl}/v1/api/danh-sach/${type}?limit=${limit}&page=${page}`;
-    const data = await this.fetchWithRetry(url, 3, { slug: type });
-    return data || null;
-  }
-
-  async fetchCrawlStatus() {
+  async handleGetCrawlStatus() {
     try {
       const crawlStatus = await this.crawlStatusModel.findOne().lean();
       return crawlStatus;
     } catch (error) {
-      console.log('>>> Lỗi khi lấy trạng thái thu thập:', error);
+      this.logProgress(' Lỗi khi lấy trạng thái cào:' + error);
       return null;
-    }
-  }
-
-  async getAllSlugs() {
-    try {
-      const result = await this.slugModel.find().lean();
-
-      return result.map((item) => item.slug);
-    } catch (error) {
-      console.log('>>> Lỗi khi lấy tất cả slug:', error);
-      return [];
-    }
-  }
-
-  async fetchSlugsByType(
-    limit = 100,
-    page = 1,
-    type: MovieType = MovieType.PHIM_BO,
-  ) {
-    try {
-      const res = await this.slugModel
-        .find({ type })
-        .limit(limit)
-        .skip((page - 1) * limit)
-        .lean();
-
-      return res.map((item) => item.slug);
-    } catch (error) {
-      console.log('>>> Lỗi khi lấy slug:', error);
-      return [];
     }
   }
 
@@ -190,30 +134,37 @@ export class CrawlService {
         {},
         {
           movieTypes: [],
-          selectedType: MovieType.PHIM_BO,
-          isCrawling: false,
+          selectedType: MOVIE_TYPE[0],
           currentPage: 1,
-          totalMovies: 0,
-          totalPages: 0,
+          isCrawling: false,
+          action: null,
         },
         { upsert: true },
       );
 
-      return {
-        status:
-          result.modifiedCount > 0
-            ? '✅ Đã reset trạng thái thu thập về ban đầu.'
-            : '⚠️ Trạng thái thu thập đã ở trạng thái ban đầu.',
-      };
+      return result.modifiedCount > 0 || !!result.upsertedId;
     } catch (error) {
-      console.log('>>> Lỗi khi reset trạng thái thu thập:', error);
-      return { status: '❌ Lỗi khi reset trạng thái thu thập.' };
+      this.logProgress(' Lỗi khi đặt lại trạng thái cào:' + error);
+      return false;
     }
   }
 
-  async insertOrUpdateMovie(data: any) {
+  async handleGetAllSlug() {
+    try {
+      const result = await this.slugModel.find().lean();
+
+      return result.map((item) => item.slug);
+    } catch (error) {
+      this.logProgress(' Lỗi khi lấy tất cả slug:' + error);
+      return [];
+    }
+  }
+
+  async handleUpsertMovie(data: any) {
     try {
       const movieId = data?.movie?._id;
+
+      // Xoá trường _id để tránh lỗi khi upsert
       delete data?.movie?._id;
 
       const result = await this.movieModel.updateOne(
@@ -237,23 +188,24 @@ export class CrawlService {
 
       return result?.upsertedCount > 0 || result?.modifiedCount > 0;
     } catch (error) {
-      console.log('>>> Lỗi khi lưu phim vào cơ sở dữ liệu:', error);
+      this.logProgress(' Lỗi khi lưu phim vào cơ sở dữ liệu:' + error);
       return false;
     }
   }
 
+  // Kiểm tra xem có đang trong trạng thái crawling không
   async handleCheckIsCrawling() {
     try {
       const crawlStatus = await this.crawlStatusModel.findOne().lean();
       return crawlStatus?.isCrawling || false;
     } catch (error) {
-      console.log('>>> Lỗi khi kiểm tra trạng thái crawling:', error);
+      this.logProgress(' Lỗi khi kiểm tra trạng thái crawling:' + error);
       return false;
     }
   }
 
   // Đặt trạng thái isCrawling
-  async setIsCrawling(value: boolean) {
+  async handleSetIsCrawing(value: boolean) {
     try {
       const result = await this.crawlStatusModel.updateOne(
         {},
@@ -263,12 +215,12 @@ export class CrawlService {
 
       return result.modifiedCount > 0;
     } catch (error) {
-      console.log('>>> Lỗi khi cập nhật trạng thái crawling:', error);
+      this.logProgress(' Lỗi khi cập nhật trạng thái crawling:' + error);
       return false;
     }
   }
 
-  async setActionCrawl(action: 'create' | 'update' | null) {
+  async handleSetActionCrawl(action: 'create' | 'update' | null) {
     try {
       const result = await this.crawlStatusModel.updateOne(
         {},
@@ -278,22 +230,22 @@ export class CrawlService {
 
       return result.modifiedCount > 0;
     } catch (error) {
-      console.log('>>> Lỗi khi cập nhật hành động crawl:', error);
+      this.logProgress(' Lỗi khi cập nhật hành động crawl:' + error);
       return false;
     }
   }
 
-  async checkActionCrawl() {
+  async handleCheckActionCrawl() {
     try {
       const crawlStatus = await this.crawlStatusModel.findOne().lean();
       return crawlStatus?.action || null;
     } catch (error) {
-      console.log('>>> Lỗi khi kiểm tra hành động crawl:', error);
+      this.logProgress(' Lỗi khi kiểm tra hành động crawl:' + error);
       return null;
     }
   }
 
-  async findSlugNotInMovies() {
+  async handleFindSlugNoInMovies() {
     try {
       const result = await this.slugModel.aggregate([
         {
@@ -316,12 +268,12 @@ export class CrawlService {
 
       return result.map((item) => item.slug);
     } catch (error) {
-      console.log('>>> Lỗi khi tìm slug chưa có trong movies:', error);
+      this.logProgress(' Lỗi khi tìm slug chưa có trong movies:' + error);
       return [];
     }
   }
 
-  async updateCurrentPageInCrawlStatus(page: number) {
+  async handleUpCurrentPageInCrawlStatus(page: number) {
     try {
       const result = await this.crawlStatusModel.updateOne(
         {},
@@ -331,25 +283,28 @@ export class CrawlService {
 
       return result.modifiedCount > 0;
     } catch (error) {
-      console.log(
-        '>>> Lỗi khi cập nhật trang hiện tại trong trạng thái thu thập:',
-        error,
+      this.logProgress(
+        ' Lỗi khi cập nhật trang hiện tại trong trạng thái cào:' + error,
       );
       return false;
     }
   }
 
-  async fetchTotalMovies() {
+  async handleGetTotalMovies() {
     try {
       const result = await this.movieModel.countDocuments();
       return result;
     } catch (error) {
-      console.log('>>> Lỗi khi lấy tổng số phim:', error);
+      this.logProgress(' Lỗi khi lấy tổng số phim:' + error);
       return 0;
     }
   }
 
-  async crawlSlugsInPage(j: number, totalPages: number, type: MovieType) {
+  async handleCrawlSlugsFromPage(
+    j: number,
+    totalPages: number,
+    type: MovieType,
+  ) {
     try {
       const response = await this.fetchDataMovie(
         type || MovieType.PHIM_BO,
@@ -368,7 +323,7 @@ export class CrawlService {
       const slugs: string[] =
         response?.data?.items?.map((item: any) => item.slug) || [];
 
-      this.logProgress(`===== Đang thu thập trang ${j} / ${totalPages} =====`);
+      this.logProgress(`📄 Đang cào phim tại trang ${j} / ${totalPages}`);
 
       const tasks = slugs?.map((slug) => {
         return {
@@ -399,41 +354,40 @@ export class CrawlService {
       this.logProgress(`ℹ️ Có ${existingCount} slug đã tồn tại trong DB.`);
 
       // Cập nhật trang hiện tại trong crawl status
-      await this.updateCurrentPageInCrawlStatus(j);
+      await this.handleUpCurrentPageInCrawlStatus(j);
     } catch (error) {
-      this.logProgress('>>> Lỗi khi crawl slug trong trang:' + error);
+      this.logProgress(' Lỗi khi crawl slug trong trang:' + error);
       return;
     }
   }
 
   async handleCrawlSlugs() {
     try {
-      const crawStatus = await this.fetchCrawlStatus();
-      const { arrHasCrawled, arrNotCrawled } = this.movieHasCrawled(
-        crawStatus?.movieTypes || [],
-      );
+      const crawStatus = await this.handleGetCrawlStatus();
+      const { arrHasCrawled, arrNotCrawled } =
+        this.handleGroupMovieTypesByCrawl(crawStatus?.movieTypes || []);
 
       if (arrHasCrawled?.length === MOVIE_TYPE?.length) {
-        this.logProgress('✅ Tất cả các loại phim đã được thu thập.');
+        this.logProgress('✅ Tất cả các loại slug đã được cào.');
 
         return {
           status: true,
-          message: 'Tất cả các loại phim đã được thu thập.',
+          message: 'Tất cả các slug đã được cào.',
         };
       }
 
-      this.logProgress('🚀 Bắt đầu quá trình thu thập slug phim...\n');
+      this.logProgress('🚀 Bắt đầu quá trình cào slug phim...\n');
 
       for (let i = 0; i < arrNotCrawled.length; i++) {
         const isCrawling = await this.handleCheckIsCrawling();
 
         if (!isCrawling) {
-          this.logProgress('⏸️ Quá trình thu thập đã bị tạm dừng.');
-          return { status: 'Quá trình thu thập đã bị tạm dừng.' };
+          this.logProgress('⏸️ Quá trình cào đã bị tạm dừng.');
+          return { status: 'Quá trình cào đã bị tạm dừng.' };
         }
 
         const type = arrNotCrawled[i];
-        const crawStatus = await this.fetchCrawlStatus();
+        const crawStatus = await this.handleGetCrawlStatus();
 
         // Lấy thông tin phân trang
         const response = await this.fetchDataMovie(
@@ -443,7 +397,7 @@ export class CrawlService {
         );
 
         if (!response?.status) {
-          console.log(
+          this.logProgress(
             `❌ Không lấy được dữ liệu phim cho loại: ${type}, bỏ qua...`,
           );
           continue;
@@ -472,39 +426,37 @@ export class CrawlService {
             const isCrawling = await this.handleCheckIsCrawling();
 
             if (!isCrawling) {
-              this.logProgress('⏸️ Quá trình thu thập đã bị tạm dừng.');
+              this.logProgress('⏸️ Quá trình cào đã bị tạm dừng.');
 
-              return { status: 'Quá trình thu thập đã bị tạm dừng.' };
+              return { status: 'Quá trình cào đã bị tạm dừng.' };
             }
 
-            await this.crawlSlugsInPage(currentPage, totalPages, type);
+            await this.handleCrawlSlugsFromPage(currentPage, totalPages, type);
 
             this.logProgress(`⏳ Delay 300ms trước khi qua trang tiếp theo...`);
-            await this.sleep(300);
+            await sleep(300);
           });
         });
 
         if (!tasks || tasks.length === 0) {
-          this.logProgress(
-            `⚠️ Loại phim ${type} không có trang nào để thu thập.`,
-          );
+          this.logProgress(`⚠️ Loại phim ${type} không có trang nào để cào.`);
           continue;
         }
 
         await Promise.allSettled(tasks);
 
-        // Cập nhật loại phim đã thu thập xong
-        const updated = await this.updateMovieTypesInCrawlStatus(type);
+        // Cập nhật loại phim đã cào xong
+        const updated = await this.handleUpdateMovieTypesInCrawStatus(type);
 
         if (updated) {
           this.logProgress(
-            `🎉 Đã thu thập xong tất cả slug cho loại phim: ${type}\n`,
+            `🎉 Đã cào xong tất cả slug cho loại phim: ${type}\n`,
           );
           this.logProgress(
             '⏳ Delay 3s trước khi chuyển sang loại phim tiếp theo...',
           );
 
-          await this.sleep(3000);
+          await sleep(3000);
         } else {
           this.logProgress(
             `❌ Thu thập slug cho loại phim ${type} nhưng không thể cập nhật trạng thái.\n`,
@@ -513,13 +465,13 @@ export class CrawlService {
         }
       }
 
-      await this.setIsCrawling(false);
+      await this.handleSetIsCrawing(false);
 
-      this.logProgress('🎉 Đã thu thập xong tất cả slug trong danh sách.');
+      this.logProgress('🎉 Đã cào xong tất cả slug trong danh sách.');
 
       return {
         status: true,
-        message: 'Đã thu thập xong tất cả slug trong danh sách.',
+        message: 'Đã cào xong tất cả slug trong danh sách.',
       };
     } catch (error) {
       this.logProgress('❌ Lỗi khi crawl slug:' + error);
@@ -527,19 +479,41 @@ export class CrawlService {
     }
   }
 
-  async crawlMoviesInPage(
+  async handlePushSocketRefreshTotalMovies() {
+    try {
+      const response = await this.moviesService.getMoviesStats();
+      const movieStats = response?.data || {};
+
+      this.crawlGateway.refreshTotalMovies({
+        totalMovies: movieStats.totalMovies || 0,
+        totalSlugs: movieStats.totalSlugs || 0,
+        totalSeries: movieStats.totalSeries || 0,
+        totalSingles: movieStats.totalSingles || 0,
+        totalCinemas: movieStats.totalCinemas || 0,
+        totalTVShows: movieStats.totalTVShows || 0,
+        totalAnimations: movieStats.totalAnimations || 0,
+      });
+
+      return true;
+    } catch (error) {
+      this.logProgress(' Lỗi khi gửi socket cập nhật tổng số phim:' + error);
+      return false;
+    }
+  }
+
+  async handleCrawlMoviesFromPage(
     j: number,
     totalPages: number,
     slugs: string[],
     limit: any,
   ) {
-    this.logProgress(`📄 Đang thu thập phim tại trang ${j} / ${totalPages}`);
+    this.logProgress(`📄 Đang cào phim tại trang ${j} / ${totalPages}`);
 
     if (!slugs || slugs.length === 0) {
       this.logProgress(
-        `⚠️ Trang ${j} không có slug nào để thu thập. Bỏ qua sau 300ms...\n`,
+        `⚠️ Trang ${j} không có slug nào để cào. Bỏ qua sau 300ms...\n`,
       );
-      await this.sleep(300);
+      await sleep(300);
       return;
     }
 
@@ -553,7 +527,7 @@ export class CrawlService {
             return { slug, status: 'not_found' };
           }
 
-          const isNew = await this.insertOrUpdateMovie(movieDetail);
+          const isNew = await this.handleUpsertMovie(movieDetail);
           const progress = `${i + 1}/${slugs.length}`;
 
           if (isNew) {
@@ -579,53 +553,41 @@ export class CrawlService {
     // Hiển thị thống kê kết quả
     logCrawlStats(j, slugs, results);
 
+    // Cập nhật lại tổng số phim sau mỗi trang
+    await this.handlePushSocketRefreshTotalMovies();
+
     if (j < totalPages) {
-      const response = await this.moviesService.getMoviesStats();
-
-      const movieStats = response?.data || {};
-
-      this.crawlGateway.refreshTotalMovies({
-        totalMovies: movieStats.totalMovies || 0,
-        totalSeries: movieStats.totalSeries || 0,
-        totalSingles: movieStats.totalSingles || 0,
-        totalCinemas: movieStats.totalCinemas || 0,
-        totalTVShows: movieStats.totalTVShows || 0,
-        totalAnimations: movieStats.totalAnimations || 0,
-      });
-
       this.logProgress('⏳ Delay 3s trước khi qua trang tiếp theo...');
-      await this.sleep(3000);
+      await sleep(3000);
     }
   }
 
   async handleCrawlMovies(limit: number, type: 'create' | 'update' = 'create') {
     try {
       // Đánh dấu đang trong trạng thái crawling
-      await this.setIsCrawling(true);
-      await this.setActionCrawl(type);
+      await this.handleSetIsCrawing(true);
+      await this.handleSetActionCrawl(type);
 
       const response = await this.handleCrawlSlugs();
 
       if (response?.status) {
         this.logProgress(
-          '✅ Đã hoàn thành việc thu thập slug, bắt đầu thu thập phim...\n',
+          '✅ Đã hoàn thành việc cào slug, bắt đầu cào phim...\n',
         );
       }
 
       let slugsNeedCrawl: string[] = [];
 
       if (type === 'create') {
-        this.logProgress('🚀 Bắt đầu quá trình thu thập phim mới...\n');
-        slugsNeedCrawl = await this.findSlugNotInMovies();
+        this.logProgress('🚀 Bắt đầu quá trình thu cào phim mới...\n');
+        slugsNeedCrawl = await this.handleFindSlugNoInMovies();
       } else if (type === 'update') {
         this.logProgress('🚀 Bắt đầu quá trình cập nhật lại tất cả phim...\n');
-        slugsNeedCrawl = await this.getAllSlugs();
+        slugsNeedCrawl = await this.handleGetAllSlug();
       }
 
-      console.log('Tổng số phim cần thu thập:', slugsNeedCrawl);
-
       if (slugsNeedCrawl?.length === 0) {
-        this.logProgress('🎉 Không còn phim để crawl');
+        this.logProgress('🎉 Không còn phim để cào');
         return {
           status: '🎉 Không còn phim để crawl',
         };
@@ -637,8 +599,8 @@ export class CrawlService {
       console.log(`
 ========= TRẠNG THÁI CÀO PHIM =========\n
 ⚡ Số phim xử lý mỗi lần: ${limit}\n
-📌 Tổng số phim cần thu thập: ${slugsNeedCrawl.length}\n
-📄 Tổng số trang cần thu thập: ${totalPages}\n
+📌 Tổng số phim cần cào: ${slugsNeedCrawl.length}\n
+📄 Tổng số trang cần cào: ${totalPages}\n
 =======================================
 `);
 
@@ -652,22 +614,22 @@ export class CrawlService {
 
         const slugs: string[] = slugsNeedCrawl.slice((j - 1) * 100, j * 100); // j = 1 -> 0-99, j=2 -> 100-199
 
-        await this.crawlMoviesInPage(j, totalPages, slugs, limitFn);
+        await this.handleCrawlMoviesFromPage(j, totalPages, slugs, limitFn);
       }
 
-      this.logProgress('🎉 Đã thu thập xong tất cả phim trong danh sách.');
+      this.logProgress('🎉 Đã cào xong tất cả phim trong danh sách.');
 
       return {
         status: '🎉 Đã hoàn tất quá trình crawl phim.',
       };
     } catch (error) {
-      this.logProgress('>>> Lỗi khi crawl các phim:' + error);
+      this.logProgress(' Lỗi khi crawl các phim:' + error);
       return {
         status: '❌ Lỗi khi crawl các phim.',
       };
     } finally {
-      await this.setIsCrawling(false);
-      await this.setActionCrawl(null);
+      await this.handleSetIsCrawing(false);
+      await this.handleSetActionCrawl(null);
       this.crawlGateway.notifyCrawlStatus(false);
     }
   }

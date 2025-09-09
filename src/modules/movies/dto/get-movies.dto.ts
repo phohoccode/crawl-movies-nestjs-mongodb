@@ -1,12 +1,8 @@
 import { IsIn, IsInt, IsNotEmpty, IsOptional, Max, Min } from 'class-validator';
-import { MOVIE_TYPE } from '../constants/movie.contant';
 import { Type } from 'class-transformer';
 
 export class GetMoviesDto {
   @IsNotEmpty({ message: 'Type không được để trống' })
-  @IsIn(MOVIE_TYPE, {
-    message: `Type phải là một trong: ${MOVIE_TYPE.join(', ')}`,
-  })
   type: string;
 
   @IsOptional()

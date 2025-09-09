@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { CrawlService } from './crawl.service';
 import { CrawlController } from './crawl.controller';
 import { MongooseModule } from '@nestjs/mongoose';
@@ -15,9 +15,10 @@ import { MoviesModule } from '../movies/movies.module';
       { name: Slug.name, schema: SlugSchema },
       { name: CrawlStatus.name, schema: CrawlStatusSchema },
     ]),
-    MoviesModule,
+    forwardRef(() => MoviesModule),
   ],
   controllers: [CrawlController],
   providers: [CrawlService, CrawlGateway],
+  exports: [CrawlService],
 })
 export class CrawlModule {}

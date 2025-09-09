@@ -1,12 +1,25 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { MoviesService } from './movies.service';
 import { MoviesController } from './movies.controller';
 import { Movie, MovieSchema } from '@/modules/movies/schemas/movie.schema';
 import { MongooseModule } from '@nestjs/mongoose';
+import { CrawlModule } from '../crawl/crawl.module';
+import { Slug, SlugSchema } from '../crawl/schemas/slug.schema';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([{ name: Movie.name, schema: MovieSchema }]),
+    MongooseModule.forFeature([
+      {
+        name: Movie.name,
+        schema: MovieSchema,
+      },
+      {
+        name: Slug.name,
+        schema: SlugSchema,
+      },
+    ]),
+
+    forwardRef(() => CrawlModule),
   ],
   controllers: [MoviesController],
   providers: [MoviesService],

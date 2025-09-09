@@ -8,13 +8,17 @@ async function bootstrap() {
 
   const configService = app.get(ConfigService);
   const port = configService.get<string>('PORT') || 8080;
+  const corsOrigins = configService.get<string>('CORS_ORIGINS')?.split(',') || [
+    '*',
+  ];
+  const apiVersion = configService.get<string>('API_VERSION') || 'v1';
 
   // config prefix api
-  app.setGlobalPrefix('api/v1', {
+  app.setGlobalPrefix(`api/${apiVersion}`, {
     exclude: [
       '',
       {
-        path: '/crawl/(.*)',
+        path: '/crawl/*path',
         method: RequestMethod.ALL,
       },
     ],
@@ -22,7 +26,7 @@ async function bootstrap() {
 
   // config cors
   app.enableCors({
-    origin: '*',
+    origin: corsOrigins,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
   });
 
