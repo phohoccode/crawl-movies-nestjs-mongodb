@@ -1,4 +1,4 @@
-import { IsIn, IsInt, IsNotEmpty, IsOptional, Max, Min } from 'class-validator';
+import { IsInt, IsNotEmpty, IsOptional, Max, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class GetMoviesDto {

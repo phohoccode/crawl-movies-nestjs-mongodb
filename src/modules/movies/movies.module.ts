@@ -5,6 +5,10 @@ import { Movie, MovieSchema } from '@/modules/movies/schemas/movie.schema';
 import { MongooseModule } from '@nestjs/mongoose';
 import { CrawlModule } from '../crawl/crawl.module';
 import { Slug, SlugSchema } from '../crawl/schemas/slug.schema';
+import {
+  CrawlStatus,
+  CrawlStatusSchema,
+} from '../crawl/schemas/crawl-status.schema';
 
 @Module({
   imports: [
@@ -16,6 +20,10 @@ import { Slug, SlugSchema } from '../crawl/schemas/slug.schema';
       {
         name: Slug.name,
         schema: SlugSchema,
+      },
+      {
+        name: CrawlStatus.name,
+        schema: CrawlStatusSchema,
       },
     ]),
 

@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { HydratedDocument, Schema as MongooseSchema } from 'mongoose';
+import { HydratedDocument } from 'mongoose';
 
 export type MovieDocument = HydratedDocument<Movie>;
 
@@ -67,6 +67,11 @@ class Episode {
   server_data: EpisodeData[];
 }
 
+class Modified {
+  @Prop({ type: String })
+  time: string;
+}
+
 @Schema({ collection: 'movies' })
 export class Movie {
   @Prop({ type: Tmdb, required: true })
@@ -86,6 +91,9 @@ export class Movie {
 
   @Prop({ type: Boolean })
   is_cinema: boolean;
+
+  @Prop({ type: Boolean })
+  sub_docquyen: boolean;
 
   @Prop({ type: String })
   content: string;
@@ -134,6 +142,9 @@ export class Movie {
 
   @Prop({ type: [Episode] })
   episodes: Episode[];
+
+  @Prop({ type: Modified })
+  modified: Modified;
 }
 
 export const MovieSchema = SchemaFactory.createForClass(Movie);

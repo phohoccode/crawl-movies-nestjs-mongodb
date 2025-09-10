@@ -68,7 +68,9 @@ export type MovieType =
   | 'tv-shows'
   | 'phim-vietsub'
   | 'phim-thuyet-minh'
-  | 'phim-long-tieng';
+  | 'phim-long-tieng'
+  | 'subteam'
+  | 'latest';
 
 export const CountriesArray: Countries[] = [
   'viet-nam',

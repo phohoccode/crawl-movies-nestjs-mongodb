@@ -1,11 +1,11 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/require-await */
 import {
   Categories,
   CategoriesArray,
   Countries,
   CountriesArray,
 } from './types/movie.type';
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/require-await */
 import {
   Injectable,
   InternalServerErrorException,
@@ -22,12 +22,19 @@ import {
 import { UpdateMovieDto } from './dto/update-movie.dto';
 import { titlePageMapping } from './constants/movie.contant';
 import { Slug, SlugDocument } from '../crawl/schemas/slug.schema';
+import {
+  CrawlStatus,
+  CrawlStatusDocument,
+} from '../crawl/schemas/crawl-status.schema';
+import { generateImageFromMovies, generateMetaDataFn } from '@/helpers/utils';
 
 @Injectable()
 export class MoviesService {
   constructor(
     @InjectModel(Movie.name) private movieModel: Model<MovieDocument>,
     @InjectModel(Slug.name) private slugModel: Model<SlugDocument>,
+    @InjectModel(CrawlStatus.name)
+    private crawlStatusModel: Model<CrawlStatusDocument>,
   ) {}
 
   async getMoviesFromDb(
@@ -43,7 +50,7 @@ export class MoviesService {
         .find(condition)
         .skip(skip)
         .limit(limit)
-        .sort({ createdAt: -1 })
+        .sort({ 'modified.time': -1 })
         .select(select)
         .lean();
 
@@ -70,9 +77,11 @@ export class MoviesService {
         'phim-chieu-rap': { is_cinema: true },
         'hoat-hinh': { type: 'hoathinh' },
         'tv-shows': { type: 'tvshows' },
+        subteam: { sub_docquyen: true },
         'phim-vietsub': { lang: { $regex: 'Vietsub', $options: 'i' } },
         'phim-thuyet-minh': { lang: { $regex: 'Thuyết minh', $options: 'i' } },
         'phim-long-tieng': { lang: { $regex: 'Lồng tiếng', $options: 'i' } },
+        latest: {},
       };
 
       let conditionFilter = {};
@@ -85,14 +94,29 @@ export class MoviesService {
         conditionFilter = typeMapping[type] || {};
       }
 
-      const data = await this.getMoviesFromDb(conditionFilter, limit, page);
+      // if (Object.keys(conditionFilter)?.length === 0) {
+      //   return {
+      //     status: false,
+      //     message: 'Không tìm thấy phim phù hợp!',
+      //     data: { items: [], params: {} },
+      //   };
+      // }
 
+      const data = await this.getMoviesFromDb(conditionFilter, limit, page);
       const { movies, totals } = data;
+
+      const { titleHead, descriptionHead } = generateMetaDataFn(type);
+      const images = generateImageFromMovies(movies);
 
       return {
         status: true,
         message: 'Thành công',
         data: {
+          seoOnPage: {
+            titleHead,
+            descriptionHead,
+            or_imgages: images,
+          },
           params: {
             pagination: {
               totalPages: Math.ceil(totals / limit),
@@ -249,20 +273,36 @@ export class MoviesService {
     try {
       const [
         totalMovies,
+        totalUpdatedMovies,
         totalSlugs,
         totalSeries,
         totalSingles,
         totalCinemas,
         totalTVShows,
         totalAnimations,
+        totalDubbedMovies, // phim thuyết minh
+        totalSubtitledMovies, // phim vietsub
+        totalVoiceDubbedMovies, // phim lồng tiếng
       ] = await Promise.allSettled([
         this.movieModel.countDocuments(),
+        this.crawlStatusModel
+          .findOne()
+          .then((doc) => (doc ? doc.totalUpdatedMovies : 0)),
         this.slugModel.countDocuments(),
         this.movieModel.countDocuments({ type: 'series' }),
         this.movieModel.countDocuments({ type: 'single' }),
         this.movieModel.countDocuments({ is_cinema: true }),
         this.movieModel.countDocuments({ type: 'tvshows' }),
         this.movieModel.countDocuments({ type: 'hoathinh' }),
+        this.movieModel.countDocuments({
+          lang: { $regex: 'Thuyết minh', $options: 'i' },
+        }),
+        this.movieModel.countDocuments({
+          lang: { $regex: 'Vietsub', $options: 'i' },
+        }),
+        this.movieModel.countDocuments({
+          lang: { $regex: 'Lồng tiếng', $options: 'i' },
+        }),
       ]);
 
       return {
@@ -271,6 +311,10 @@ export class MoviesService {
         data: {
           totalMovies:
             totalMovies.status === 'fulfilled' ? totalMovies.value : 0,
+          totalUpdatedMovies:
+            totalUpdatedMovies.status === 'fulfilled'
+              ? totalUpdatedMovies.value
+              : 0,
           totalSlugs: totalSlugs.status === 'fulfilled' ? totalSlugs.value : 0,
           totalSeries:
             totalSeries.status === 'fulfilled' ? totalSeries.value : 0,
@@ -282,6 +326,18 @@ export class MoviesService {
             totalTVShows.status === 'fulfilled' ? totalTVShows.value : 0,
           totalAnimations:
             totalAnimations.status === 'fulfilled' ? totalAnimations.value : 0,
+          totalDubbedMovies:
+            totalDubbedMovies.status === 'fulfilled'
+              ? totalDubbedMovies.value
+              : 0,
+          totalSubtitledMovies:
+            totalSubtitledMovies.status === 'fulfilled'
+              ? totalSubtitledMovies.value
+              : 0,
+          totalVoiceDubbedMovies:
+            totalVoiceDubbedMovies.status === 'fulfilled'
+              ? totalVoiceDubbedMovies.value
+              : 0,
         },
       };
     } catch (error) {

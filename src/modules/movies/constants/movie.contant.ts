@@ -18,6 +18,7 @@ export const titlePageMapping: Partial<
   'phim-bo': 'Phim bộ',
   'phim-chieu-rap': 'Phim chiếu rạp',
   'hoat-hinh': 'Phim hoạt hình',
+  subteam: 'Phim có sub độc quyền',
   'tv-shows': 'Chương trình truyền hình',
   'phim-vietsub': 'Phim phụ đề',
   'phim-thuyet-minh': 'Phim thuyết minh',
@@ -81,3 +82,21 @@ export const titlePageMapping: Partial<
   'chinh-kich': 'Phim Chính Kịch',
   'kinh-dien': 'Phim Kinh Điển',
 };
+
+// Object.fromEntries() giúp chuyển đổi một mảng các cặp [key, value] thành một đối tượng.
+// Vd: Object.fromEntries([['key1', 'value1'], ['key2', 'value2']]) => { key1: 'value1', key2: 'value2' }
+// Partial<Record<...>> giúp định nghĩa kiểu cho đối tượng kết quả.
+// Object.entries(titlePageMapping) lấy tất cả các cặp [key, value] từ đối tượng titlePageMapping.
+// Vd: Object.entries({ a: 1, b: 2 }) => [['a', 1], ['b', 2]]
+
+export const generateMetaData: Partial<
+  Record<MovieType | Countries | Categories, any>
+> = Object.fromEntries(
+  Object.entries(titlePageMapping).map(([key, title]) => [
+    key,
+    {
+      title: `${title} - Xem phim online miễn phí`,
+      description: `Xem ngay ${title} chất lượng cao, cập nhật nhanh nhất tại PHOFLIX-V3.`,
+    },
+  ]),
+);

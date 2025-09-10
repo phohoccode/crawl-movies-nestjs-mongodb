@@ -2,6 +2,13 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 
+import { generateMetaData } from '@/modules/movies/constants/movie.contant';
+import {
+  Categories,
+  Countries,
+  MovieType,
+} from '@/modules/movies/types/movie.type';
+
 export function logCrawlStats(
   pageNumber: number,
   slugs: string[],
@@ -81,4 +88,27 @@ export function getTimeStamp(): string {
   const seconds = now.getSeconds().toString().padStart(2, '0');
 
   return `[${hours}:${minutes}:${seconds}]`;
+}
+
+export function generateMetaDataFn(type: MovieType | Countries | Categories) {
+  const meta = generateMetaData[type];
+
+  if (!meta) {
+    return {
+      titleHead: 'PHOFLIX-V3 - Xem phim online miễn phí',
+      descriptionHead:
+        'Xem phim chất lượng cao, miễn phí, cập nhật nhanh nhất tại PHOFLIX-V3.',
+    };
+  }
+
+  return {
+    titleHead: meta.title,
+    descriptionHead: meta.description,
+  };
+}
+
+export function generateImageFromMovies(movies: any[]) {
+  return movies.map((movie) => {
+    return movie.poster_url;
+  });
 }

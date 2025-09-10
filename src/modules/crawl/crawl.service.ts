@@ -138,6 +138,7 @@ export class CrawlService {
           currentPage: 1,
           isCrawling: false,
           action: null,
+          totalUpdatedMovies: 0,
         },
         { upsert: true },
       );
@@ -185,6 +186,14 @@ export class CrawlService {
         },
         { upsert: true },
       );
+
+      // Cập nhật tổng số phim đã cập nhật nếu có thay đổi
+      if (result?.modifiedCount > 0) {
+        await this.crawlStatusModel.updateOne(
+          {},
+          { $inc: { totalUpdatedMovies: 1 } },
+        );
+      }
 
       return result?.upsertedCount > 0 || result?.modifiedCount > 0;
     } catch (error) {
@@ -486,12 +495,16 @@ export class CrawlService {
 
       this.crawlGateway.refreshTotalMovies({
         totalMovies: movieStats.totalMovies || 0,
+        totalUpdatedMovies: movieStats.totalUpdatedMovies || 0,
         totalSlugs: movieStats.totalSlugs || 0,
         totalSeries: movieStats.totalSeries || 0,
         totalSingles: movieStats.totalSingles || 0,
         totalCinemas: movieStats.totalCinemas || 0,
         totalTVShows: movieStats.totalTVShows || 0,
         totalAnimations: movieStats.totalAnimations || 0,
+        totalDubbedMovies: movieStats.totalDubbedMovies || 0,
+        totalSubtitledMovies: movieStats.totalSubtitledMovies || 0,
+        totalVoiceDubbedMovies: movieStats.totalVoiceDubbedMovies || 0,
       });
 
       return true;
@@ -564,10 +577,6 @@ export class CrawlService {
 
   async handleCrawlMovies(limit: number, type: 'create' | 'update' = 'create') {
     try {
-      // Đánh dấu đang trong trạng thái crawling
-      await this.handleSetIsCrawing(true);
-      await this.handleSetActionCrawl(type);
-
       const response = await this.handleCrawlSlugs();
 
       if (response?.status) {
@@ -575,6 +584,10 @@ export class CrawlService {
           '✅ Đã hoàn thành việc cào slug, bắt đầu cào phim...\n',
         );
       }
+
+      // Đánh dấu đang trong trạng thái crawling
+      await this.handleSetIsCrawing(true);
+      await this.handleSetActionCrawl(type);
 
       let slugsNeedCrawl: string[] = [];
 
