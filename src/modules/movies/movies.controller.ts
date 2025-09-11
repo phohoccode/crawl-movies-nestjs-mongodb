@@ -28,11 +28,7 @@ export class MoviesController {
 
   @Get('search')
   async searchMovies(@Query() searchMovieDto: SearchMoviesDto) {
-    return this.moviesService.searchMovies(
-      searchMovieDto.keyword,
-      +(searchMovieDto?.limit || 10),
-      +(searchMovieDto?.page || 1),
-    );
+    return this.moviesService.searchMovies(searchMovieDto);
   }
 
   @Get(':type')

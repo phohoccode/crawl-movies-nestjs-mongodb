@@ -1,17 +1,12 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/require-await */
-import {
-  Categories,
-  CategoriesArray,
-  Countries,
-  CountriesArray,
-} from './types/movie.type';
+
 import {
   Injectable,
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
-import { MovieType } from './types/movie.type';
+import { Category, Country, Language, MovieType } from './types/movie.type';
 import { InjectModel } from '@nestjs/mongoose';
 import { Movie, MovieDocument } from './schemas/movie.schema';
 import { FilterQuery, Model } from 'mongoose';
@@ -20,13 +15,23 @@ import {
   NOT_FOUND_ERROR,
 } from './constants/error.contant';
 import { UpdateMovieDto } from './dto/update-movie.dto';
-import { titlePageMapping } from './constants/movie.contant';
+import {
+  CategoriesArray,
+  CountriesArray,
+  titlePageMapping,
+} from './constants/movie.contant';
 import { Slug, SlugDocument } from '../crawl/schemas/slug.schema';
 import {
   CrawlStatus,
   CrawlStatusDocument,
 } from '../crawl/schemas/crawl-status.schema';
-import { generateImageFromMovies, generateMetaDataFn } from '@/helpers/utils';
+import {
+  generateImageFromMovies,
+  generateMetaDataFn,
+  getValueByPromiseAllSettled,
+  normalize,
+} from '@/helpers/utils';
+import { SearchMoviesDto } from './dto/search-movies.dto';
 
 @Injectable()
 export class MoviesService {
@@ -41,6 +46,7 @@ export class MoviesService {
     condition: FilterQuery<MovieDocument>,
     limit: number,
     page: number,
+    sort?: Record<string, 1 | -1>,
   ): Promise<{ movies: MovieDocument[]; totals: number }> {
     try {
       const select = '-__v -createdAt -updatedAt -episodes';
@@ -50,7 +56,7 @@ export class MoviesService {
         .find(condition)
         .skip(skip)
         .limit(limit)
-        .sort({ 'modified.time': -1 })
+        .sort(sort || { 'modified.time': -1 })
         .select(select)
         .lean();
 
@@ -86,21 +92,21 @@ export class MoviesService {
 
       let conditionFilter = {};
 
-      if (CountriesArray.includes(type as Countries)) {
+      if (CountriesArray.includes(type as Country)) {
         conditionFilter = { countries: { $elemMatch: { slug: type } } };
-      } else if (CategoriesArray.includes(type as Categories)) {
+      } else if (CategoriesArray.includes(type as Category)) {
         conditionFilter = { categories: { $elemMatch: { slug: type } } };
       } else {
         conditionFilter = typeMapping[type] || {};
       }
 
-      // if (Object.keys(conditionFilter)?.length === 0) {
-      //   return {
-      //     status: false,
-      //     message: 'Không tìm thấy phim phù hợp!',
-      //     data: { items: [], params: {} },
-      //   };
-      // }
+      if (Object.keys(conditionFilter)?.length === 0 && type !== 'latest') {
+        return {
+          status: false,
+          message: 'Không tìm thấy phim phù hợp!',
+          data: { items: [], params: {} },
+        };
+      }
 
       const data = await this.getMoviesFromDb(conditionFilter, limit, page);
       const { movies, totals } = data;
@@ -167,21 +173,71 @@ export class MoviesService {
     }
   }
 
-  async searchMovies(keyword: string, limit: number, page: number) {
+  async searchMovies(query: SearchMoviesDto) {
     try {
-      const conditionFilter = {
-        name: { $regex: keyword, $options: 'i' },
-        origin_name: { $regex: keyword, $options: 'i' },
+      const {
+        keyword,
+        limit,
+        page,
+        sort_lang: language,
+        category,
+        country,
+        year,
+        sort_type: sortType,
+      } = query;
+
+      const languageMapping: Record<Language, string> = {
+        'long-tieng': 'Lồng tiếng',
+        'thuyet-minh': 'Thuyết minh',
+        vietsub: 'Vietsub',
       };
 
-      const data = await this.getMoviesFromDb(conditionFilter, limit, page);
+      const conditionFilter = {
+        ...(keyword
+          ? {
+              $or: [
+                { name: { $regex: normalize(keyword), $options: 'i' } },
+                { origin_name: { $regex: normalize(keyword), $options: 'i' } },
+              ],
+            }
+          : {}),
+        ...(language
+          ? { lang: { $regex: languageMapping[language], $options: 'i' } }
+          : {}),
+        ...(category ? { categories: { $elemMatch: { slug: category } } } : {}),
+        ...(country ? { countries: { $elemMatch: { slug: country } } } : {}),
+        ...(year ? { year } : {}),
+      };
+
+      // Mặc định sắp xếp theo thời gian cập nhật mới nhất
+      let sort: Record<string, 1 | -1> = { 'modified.time': -1 };
+
+      if (sortType === 'asc') {
+        sort = { year: 1 };
+      } else if (sortType === 'desc') {
+        sort = { year: -1 };
+      }
+
+      const data = await this.getMoviesFromDb(
+        conditionFilter,
+        limit,
+        page,
+        sort,
+      );
 
       const { movies, totals } = data;
+      const images = generateImageFromMovies(movies);
 
       return {
         status: true,
         message: 'Thành công',
         data: {
+          seoOnPage: {
+            titleHead: `Tìm kiếm phim với từ khoá ${keyword} | Trang ${page}`,
+            descriptionHead: `Phim với từ khoá ${keyword}. Tìm kiếm và xem phim chất lượng cao, miễn phí, cập nhật nhanh nhất tại PHOFLIX-V3.`,
+            or_images: images,
+          },
+          titlePage: `Kết quả tìm kiếm với từ khoá: ${keyword}`,
           params: {
             pagination: {
               totalPages: Math.ceil(totals / limit),
@@ -242,7 +298,7 @@ export class MoviesService {
         status: true,
         message: 'Cập nhật thành công',
         data: {
-          id: movie._id,
+          movie,
         },
       };
     } catch (error) {
@@ -309,35 +365,21 @@ export class MoviesService {
         status: true,
         message: 'Thành công',
         data: {
-          totalMovies:
-            totalMovies.status === 'fulfilled' ? totalMovies.value : 0,
+          totalMovies: getValueByPromiseAllSettled(totalMovies) || 0,
           totalUpdatedMovies:
-            totalUpdatedMovies.status === 'fulfilled'
-              ? totalUpdatedMovies.value
-              : 0,
-          totalSlugs: totalSlugs.status === 'fulfilled' ? totalSlugs.value : 0,
-          totalSeries:
-            totalSeries.status === 'fulfilled' ? totalSeries.value : 0,
-          totalSingles:
-            totalSingles.status === 'fulfilled' ? totalSingles.value : 0,
-          totalCinemas:
-            totalCinemas.status === 'fulfilled' ? totalCinemas.value : 0,
-          totalTVShows:
-            totalTVShows.status === 'fulfilled' ? totalTVShows.value : 0,
-          totalAnimations:
-            totalAnimations.status === 'fulfilled' ? totalAnimations.value : 0,
+            getValueByPromiseAllSettled(totalUpdatedMovies) || 0,
+          totalSlugs: getValueByPromiseAllSettled(totalSlugs) || 0,
+          totalSeries: getValueByPromiseAllSettled(totalSeries) || 0,
+          totalSingles: getValueByPromiseAllSettled(totalSingles) || 0,
+          totalCinemas: getValueByPromiseAllSettled(totalCinemas) || 0,
+          totalTVShows: getValueByPromiseAllSettled(totalTVShows) || 0,
+          totalAnimations: getValueByPromiseAllSettled(totalAnimations) || 0,
           totalDubbedMovies:
-            totalDubbedMovies.status === 'fulfilled'
-              ? totalDubbedMovies.value
-              : 0,
+            getValueByPromiseAllSettled(totalDubbedMovies) || 0,
           totalSubtitledMovies:
-            totalSubtitledMovies.status === 'fulfilled'
-              ? totalSubtitledMovies.value
-              : 0,
+            getValueByPromiseAllSettled(totalSubtitledMovies) || 0,
           totalVoiceDubbedMovies:
-            totalVoiceDubbedMovies.status === 'fulfilled'
-              ? totalVoiceDubbedMovies.value
-              : 0,
+            getValueByPromiseAllSettled(totalVoiceDubbedMovies) || 0,
         },
       };
     } catch (error) {

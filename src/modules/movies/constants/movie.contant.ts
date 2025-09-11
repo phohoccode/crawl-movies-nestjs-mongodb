@@ -1,4 +1,4 @@
-import { Categories, Countries, MovieType } from '../types/movie.type';
+import { Category, Country, MovieType } from '../types/movie.type';
 
 export const MOVIE_TYPE: MovieType[] = [
   'phim-le',
@@ -12,13 +12,13 @@ export const MOVIE_TYPE: MovieType[] = [
 ];
 
 export const titlePageMapping: Partial<
-  Record<MovieType | Countries | Categories, any>
+  Record<MovieType | Country | Category, any>
 > = {
   'phim-le': 'Phim lẻ',
   'phim-bo': 'Phim bộ',
   'phim-chieu-rap': 'Phim chiếu rạp',
   'hoat-hinh': 'Phim hoạt hình',
-  subteam: 'Phim có sub độc quyền',
+  subteam: 'Phim độc quyền',
   'tv-shows': 'Chương trình truyền hình',
   'phim-vietsub': 'Phim phụ đề',
   'phim-thuyet-minh': 'Phim thuyết minh',
@@ -83,6 +83,72 @@ export const titlePageMapping: Partial<
   'kinh-dien': 'Phim Kinh Điển',
 };
 
+export const CountriesArray: Country[] = [
+  'viet-nam',
+  'trung-quoc',
+  'thai-lan',
+  'hong-kong',
+  'phap',
+  'duc',
+  'ha-lan',
+  'mexico',
+  'thuy-dien',
+  'philippines',
+  'dan-mach',
+  'thuy-si',
+  'ukraina',
+  'han-quoc',
+  'au-my',
+  'an-do',
+  'canada',
+  'tay-ban-nha',
+  'indonesia',
+  'ba-lan',
+  'malaysia',
+  'bo-dao-nha',
+  'uae',
+  'chau-phi',
+  'a-rap-xe-ut',
+  'nhat-ban',
+  'dai-loan',
+  'anh',
+  'quoc-gia-khac',
+  'tho-nhi-ky',
+  'nga',
+  'uc',
+  'brazil',
+  'y',
+  'na-uy',
+] as const;
+
+export const LanguagesArray = ['long-tieng', 'thuyet-minh', 'vietsub'] as const;
+
+export const CategoriesArray: Category[] = [
+  'hanh-dong',
+  'lich-su',
+  'co-trang',
+  'chien-tranh',
+  'vien-tuong',
+  'kinh-di',
+  'tai-lieu',
+  'bi-an',
+  'tinh-cam',
+  'phim-18',
+  'tam-ly',
+  'the-thao',
+  'phieu-luu',
+  'am-nhac',
+  'gia-dinh',
+  'hoc-duong',
+  'hai-huoc',
+  'hinh-su',
+  'vo-thuat',
+  'khoa-hoc',
+  'than-thoai',
+  'chinh-kich',
+  'kinh-dien',
+] as const;
+
 // Object.fromEntries() giúp chuyển đổi một mảng các cặp [key, value] thành một đối tượng.
 // Vd: Object.fromEntries([['key1', 'value1'], ['key2', 'value2']]) => { key1: 'value1', key2: 'value2' }
 // Partial<Record<...>> giúp định nghĩa kiểu cho đối tượng kết quả.
@@ -90,7 +156,7 @@ export const titlePageMapping: Partial<
 // Vd: Object.entries({ a: 1, b: 2 }) => [['a', 1], ['b', 2]]
 
 export const generateMetaData: Partial<
-  Record<MovieType | Countries | Categories, any>
+  Record<MovieType | Country | Category, any>
 > = Object.fromEntries(
   Object.entries(titlePageMapping).map(([key, title]) => [
     key,

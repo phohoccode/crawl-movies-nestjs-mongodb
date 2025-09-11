@@ -4,10 +4,17 @@
 
 import { generateMetaData } from '@/modules/movies/constants/movie.contant';
 import {
-  Categories,
-  Countries,
+  Category,
+  Country,
   MovieType,
 } from '@/modules/movies/types/movie.type';
+
+/**
+ *
+ * @param pageNumber là số trang hiện tại
+ * @param slugs  là mảng các slug phim trên trang hiện tại
+ * @param results  là mảng kết quả từ việc crawl từng slug phim
+ */
 
 export function logCrawlStats(
   pageNumber: number,
@@ -37,6 +44,13 @@ export function logCrawlStats(
   ]);
 }
 
+/**
+ *
+ * @param startPage là trang bắt đầu
+ * @param totalPages  là tổng số trang
+ * @returns  trả về mảng các số trang từ startPage đến totalPages
+ */
+
 export function getPages(startPage: number, totalPages: number): number[] {
   return Array.from(
     { length: totalPages - startPage + 1 },
@@ -44,10 +58,24 @@ export function getPages(startPage: number, totalPages: number): number[] {
   );
 }
 
+/**
+ *
+ * @param ms là số mili giây cần nghỉ
+ * @returns  trả về một Promise sau khi đã nghỉ xong
+ */
+
 export function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/**
+ *
+ * @param url là đường dẫn API cần fetch
+ * @param retries  là số lần thử lại khi fetch thất bại, mặc định là 3
+ * @param logProgress  là hàm để ghi log tiến trình
+ * @param options  là các tùy chọn cho fetch, có thể bao gồm method, headers, body, v.v.
+ * @returns  trả về dữ liệu JSON nếu fetch thành công, nếu không sẽ thử lại theo số lần đã định
+ */
 export async function fetchWithRetry(
   url: string,
   retries: number = 3,
@@ -81,6 +109,11 @@ export async function fetchWithRetry(
   }
 }
 
+/**
+ *  Lấy timestamp hiện tại theo định dạng [hh:mm:ss]
+ * @returns trả về timestamp hiện tại theo định dạng [hh:mm:ss]
+ */
+
 export function getTimeStamp(): string {
   const now = new Date();
   const hours = now.getHours().toString().padStart(2, '0');
@@ -90,7 +123,13 @@ export function getTimeStamp(): string {
   return `[${hours}:${minutes}:${seconds}]`;
 }
 
-export function generateMetaDataFn(type: MovieType | Countries | Categories) {
+/**
+ *
+ * @param type là loại phim, quốc gia hoặc thể loại
+ * @returns  trả về tiêu đề và mô tả tương ứng
+ */
+
+export function generateMetaDataFn(type: MovieType | Country | Category) {
   const meta = generateMetaData[type];
 
   if (!meta) {
@@ -107,8 +146,39 @@ export function generateMetaDataFn(type: MovieType | Countries | Categories) {
   };
 }
 
+/**
+ * Lấy danh sách các poster_url từ mảng phim
+ * @param movies là mảng các phim
+ * @returns   trả về mảng các poster_url
+ */
+
 export function generateImageFromMovies(movies: any[]) {
   return movies.map((movie) => {
     return movie.poster_url;
   });
+}
+
+/**
+ * Lấy giá trị từ kết quả của Promise.allSettled
+ * @param result là kết quả trả về từ Promise.allSettled
+ * @returns nếu trạng thái là 'fulfilled' thì trả về value, ngược lại trả về null
+ */
+
+export function getValueByPromiseAllSettled<T>(
+  result: PromiseSettledResult<T>,
+) {
+  if (result.status === 'fulfilled') {
+    return result.value;
+  }
+
+  return null;
+}
+
+/**
+ * Chuẩn hóa chuỗi
+ * @param str là chuỗi cần chuẩn hóa
+ * @returns trả về chuỗi đã chuẩn hóa ví dụ "Phở" => "Pho"
+ */
+export function normalize(str: string) {
+  return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 }
