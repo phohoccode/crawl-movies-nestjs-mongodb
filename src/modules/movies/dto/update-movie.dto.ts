@@ -1,6 +1,6 @@
 import {
   IsString,
-  IsBoolean,
+  IsBooleanString,
   IsNumber,
   IsOptional,
   IsArray,
@@ -8,99 +8,18 @@ import {
   IsMongoId,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-
-class TmdbDto {
-  @IsOptional()
-  @IsString()
-  id?: string;
-
-  @IsOptional()
-  @IsString()
-  type?: string;
-
-  @IsOptional()
-  @IsNumber()
-  season?: number;
-
-  @IsOptional()
-  @IsNumber()
-  vote_average?: number;
-
-  @IsOptional()
-  @IsNumber()
-  vote_count?: number;
-}
-
-class CategoryDto {
-  @IsOptional()
-  @IsString()
-  id?: string;
-
-  @IsOptional()
-  @IsString()
-  name?: string;
-
-  @IsOptional()
-  @IsString()
-  slug?: string;
-}
-
-class CountryDto {
-  @IsOptional()
-  @IsString()
-  id?: string;
-
-  @IsOptional()
-  @IsString()
-  name?: string;
-
-  @IsOptional()
-  @IsString()
-  slug?: string;
-}
-
-class EpisodeDataDto {
-  @IsOptional()
-  @IsString()
-  name?: string;
-
-  @IsOptional()
-  @IsString()
-  slug?: string;
-
-  @IsOptional()
-  @IsString()
-  filename?: string;
-
-  @IsOptional()
-  @IsString()
-  link_embed?: string;
-
-  @IsOptional()
-  @IsString()
-  link_m3u8?: string;
-}
-
-class EpisodeDto {
-  @IsOptional()
-  @IsString()
-  server_name?: string;
-
-  @IsOptional()
-  @ValidateNested({ each: true })
-  @Type(() => EpisodeDataDto)
-  server_data?: EpisodeDataDto[];
-}
+import {
+  CategoryInputDto,
+  CountryInputDto,
+  TmdbDto,
+  EpisodeDto,
+} from './create-movie.dto';
 
 export class UpdateMovieDto {
   @IsOptional()
   @ValidateNested()
   @Type(() => TmdbDto)
   tmdb?: TmdbDto;
-
-  @IsOptional()
-  @IsString()
-  movie_id?: string;
 
   @IsOptional()
   @IsString()
@@ -115,12 +34,16 @@ export class UpdateMovieDto {
   origin_name?: string;
 
   @IsOptional()
-  @IsBoolean()
-  is_cinema: boolean;
+  @IsBooleanString()
+  is_cinema?: string;
 
   @IsOptional()
   @IsString()
   content?: string;
+
+  @IsOptional()
+  @IsBooleanString()
+  sub_docquyen?: string;
 
   @IsOptional()
   @IsString()
@@ -159,7 +82,9 @@ export class UpdateMovieDto {
   lang?: string;
 
   @IsOptional()
-  year?: string | number;
+  @IsNumber()
+  @Type(() => Number)
+  year?: number;
 
   @IsOptional()
   @IsArray()
@@ -174,14 +99,14 @@ export class UpdateMovieDto {
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
-  @Type(() => CategoryDto)
-  categories?: CategoryDto[];
+  @Type(() => CategoryInputDto)
+  categories?: CategoryInputDto[];
 
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
-  @Type(() => CountryDto)
-  countries?: CountryDto[];
+  @Type(() => CountryInputDto)
+  countries?: CountryInputDto[];
 
   @IsOptional()
   @IsArray()

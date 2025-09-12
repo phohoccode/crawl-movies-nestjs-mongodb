@@ -5,6 +5,7 @@ import {
   Get,
   Param,
   Patch,
+  Post,
   Query,
 } from '@nestjs/common';
 import { MoviesService } from './movies.service';
@@ -16,6 +17,7 @@ import { MovieType } from './types/movie.type';
 import { QueryBasicDto } from './dto/query-basic.dto';
 import { ParamsUpdateMovie, UpdateMovieDto } from './dto/update-movie.dto';
 import { DeleteMoviesDto } from './dto/delete-movies.dto';
+import { CreateMovieDto } from './dto/create-movie.dto';
 
 @Controller('movies')
 export class MoviesController {
@@ -71,5 +73,10 @@ export class MoviesController {
   @Delete()
   async deleteMovies(@Body() deleteMoviesDto: DeleteMoviesDto) {
     return await this.moviesService.deleteMoviesByIds(deleteMoviesDto.ids);
+  }
+
+  @Post('new-movie')
+  async createMovie(@Body() createMovieDto: CreateMovieDto) {
+    return await this.moviesService.createMovie(createMovieDto);
   }
 }

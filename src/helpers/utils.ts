@@ -2,7 +2,12 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 
-import { generateMetaData } from '@/modules/movies/constants/movie.contant';
+import {
+  CategoriesArrayWithAll,
+  CountriesArrayWithAll,
+  generateMetaData,
+} from '@/modules/movies/constants/movie.contant';
+import { CategoryDto, CountryDto } from '@/modules/movies/dto/create-movie.dto';
 import {
   Category,
   Country,
@@ -181,4 +186,29 @@ export function getValueByPromiseAllSettled<T>(
  */
 export function normalize(str: string) {
   return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+export function mapCountriesOrCategories(
+  items: { name: string; slug: string }[],
+  type: 'country',
+): CountryDto[];
+export function mapCountriesOrCategories(
+  items: { name: string; slug: string }[],
+  type: 'category',
+): CategoryDto[];
+export function mapCountriesOrCategories(
+  items: { name: string; slug: string }[],
+  type: 'country' | 'category',
+) {
+  return items.map((item) => {
+    return {
+      id:
+        (type === 'country'
+          ? CountriesArrayWithAll
+          : CategoriesArrayWithAll
+        ).find((x) => x.slug === item.slug)?.id || '',
+      name: item.name,
+      slug: item.slug,
+    };
+  });
 }

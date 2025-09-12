@@ -1,7 +1,9 @@
+/* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/require-await */
 
 import {
+  ConflictException,
   Injectable,
   InternalServerErrorException,
   NotFoundException,
@@ -10,6 +12,7 @@ import { Category, Country, Language, MovieType } from './types/movie.type';
 import { InjectModel } from '@nestjs/mongoose';
 import { Movie, MovieDocument } from './schemas/movie.schema';
 import { FilterQuery, Model } from 'mongoose';
+import { v4 as uuidv4 } from 'uuid';
 import {
   INTERNAL_SERVER_ERROR,
   NOT_FOUND_ERROR,
@@ -29,9 +32,10 @@ import {
   generateImageFromMovies,
   generateMetaDataFn,
   getValueByPromiseAllSettled,
-  normalize,
+  mapCountriesOrCategories,
 } from '@/helpers/utils';
 import { SearchMoviesDto } from './dto/search-movies.dto';
+import { CreateMovieDto } from './dto/create-movie.dto';
 
 @Injectable()
 export class MoviesService {
@@ -143,7 +147,7 @@ export class MoviesService {
 
   async getMovieBySlug(slug: string) {
     try {
-      const select = '-_id -__v -createdAt -updatedAt';
+      const select = '-__v -createdAt -updatedAt';
 
       const movie = await this.movieModel
         .findOne({ slug })
@@ -196,8 +200,8 @@ export class MoviesService {
         ...(keyword
           ? {
               $or: [
-                { name: { $regex: normalize(keyword), $options: 'i' } },
-                { origin_name: { $regex: normalize(keyword), $options: 'i' } },
+                { name: { $regex: keyword, $options: 'i' } },
+                { origin_name: { $regex: keyword, $options: 'i' } },
               ],
             }
           : {}),
@@ -286,7 +290,12 @@ export class MoviesService {
     try {
       const movie = await this.movieModel.findByIdAndUpdate(
         id,
-        { $set: dataUpdate },
+        {
+          $set: {
+            'modified.time': new Date().toISOString(),
+            ...dataUpdate,
+          },
+        },
         { new: true }, // trả về document sau khi đã cập nhật}
       );
 
@@ -296,13 +305,18 @@ export class MoviesService {
 
       return {
         status: true,
-        message: 'Cập nhật thành công',
+        message: 'Thành công!',
         data: {
           movie,
         },
       };
     } catch (error) {
       console.log(error);
+
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+
       throw new InternalServerErrorException(INTERNAL_SERVER_ERROR);
     }
   }
@@ -313,7 +327,7 @@ export class MoviesService {
 
       return {
         status: true,
-        message: 'Xoá thành công',
+        message: 'Thành công',
         data: {
           ids: ids,
           deletedCount: result.deletedCount,
@@ -384,6 +398,51 @@ export class MoviesService {
       };
     } catch (error) {
       console.log(error);
+      throw new InternalServerErrorException(INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  async createMovie(createMovieDto: CreateMovieDto) {
+    try {
+      const movieExist = await this.movieModel.find({
+        $or: [{ slug: createMovieDto.slug }],
+      });
+
+      if (movieExist.length > 0) {
+        throw new ConflictException('Phim đã tồn tại trong hệ thống');
+      }
+
+      const countries = mapCountriesOrCategories(
+        createMovieDto.countries,
+        'country',
+      );
+      const categories = mapCountriesOrCategories(
+        createMovieDto.categories,
+        'category',
+      );
+
+      createMovieDto.countries = countries;
+      createMovieDto.categories = categories;
+
+      const newMovie = await this.movieModel.create({
+        movie_id: uuidv4(),
+        ...createMovieDto,
+      });
+
+      return {
+        status: true,
+        message: 'Thành công!',
+        data: {
+          movie: newMovie,
+        },
+      };
+    } catch (error) {
+      console.log(error);
+
+      if (error instanceof ConflictException) {
+        throw error;
+      }
+
       throw new InternalServerErrorException(INTERNAL_SERVER_ERROR);
     }
   }

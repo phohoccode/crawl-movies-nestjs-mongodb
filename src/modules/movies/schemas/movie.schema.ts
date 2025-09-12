@@ -1,76 +1,12 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
+import { Tmdb } from './tmdb.schema';
+import { Category } from './category.schema';
+import { Country } from './country.schema';
+import { Episode } from './episode.schema';
+import { Modified } from './modified.schema';
 
 export type MovieDocument = HydratedDocument<Movie>;
-
-class Tmdb {
-  @Prop({ type: String, required: true })
-  type: string;
-
-  @Prop({ type: String, required: true })
-  id: string;
-
-  @Prop({ type: Number })
-  season: number;
-
-  @Prop({ type: Number })
-  vote_average: number;
-
-  @Prop({ type: Number })
-  vote_count: number;
-}
-
-class Category {
-  @Prop({ type: String })
-  id: string;
-
-  @Prop({ type: String })
-  name: string;
-
-  @Prop({ type: String })
-  slug: string;
-}
-
-class Country {
-  @Prop({ type: String })
-  id: string;
-
-  @Prop({ type: String })
-  name: string;
-
-  @Prop({ type: String })
-  slug: string;
-}
-
-class EpisodeData {
-  @Prop({ type: String })
-  name: string;
-
-  @Prop({ type: String })
-  slug: string;
-
-  @Prop({ type: String })
-  filename: string;
-
-  @Prop({ type: String })
-  link_embed: string;
-
-  @Prop({ type: String })
-  link_m3u8: string;
-}
-
-class Episode {
-  @Prop({ type: String })
-  server_name: string;
-
-  @Prop({ type: [EpisodeData] })
-  server_data: EpisodeData[];
-}
-
-class Modified {
-  @Prop({ type: String })
-  time: string;
-}
 
 @Schema({ collection: 'movies' })
 export class Movie {
@@ -89,61 +25,61 @@ export class Movie {
   @Prop({ type: String })
   origin_name: string;
 
-  @Prop({ type: Boolean })
+  @Prop({ type: Boolean, default: false })
   is_cinema: boolean;
 
-  @Prop({ type: Boolean })
+  @Prop({ type: Boolean, default: false })
   sub_docquyen: boolean;
 
-  @Prop({ type: String })
+  @Prop({ type: String, default: '' })
   content: string;
 
-  @Prop({ type: String })
+  @Prop({ type: String, default: '' })
   type: string;
 
-  @Prop({ type: String })
+  @Prop({ type: String, default: '' })
   poster_url: string;
 
-  @Prop({ type: String })
+  @Prop({ type: String, default: '' })
   thumb_url: string;
 
-  @Prop({ type: String })
+  @Prop({ type: String, default: '' })
   trailer_url: string;
 
-  @Prop({ type: String })
+  @Prop({ type: String, default: '' })
   time: string;
 
-  @Prop({ type: String })
+  @Prop({ type: String, default: '' })
   episode_current: string;
 
-  @Prop({ type: String })
+  @Prop({ type: String, default: '' })
   episode_total: string;
 
-  @Prop({ type: String })
+  @Prop({ type: String, default: '' })
   quality: string;
 
-  @Prop({ type: String })
+  @Prop({ type: String, default: '' })
   lang: string;
 
-  @Prop({ type: String || Number })
-  year: string | number;
+  @Prop({ type: Number, default: () => new Date().getFullYear() })
+  year: number;
 
-  @Prop({ type: [String] })
+  @Prop({ type: [String], default: [] })
   actors: string[];
 
-  @Prop({ type: [String] })
+  @Prop({ type: [String], default: [] })
   directors: string[];
 
-  @Prop({ type: [Category] })
+  @Prop({ type: [Category], default: [] })
   categories: Category[];
 
-  @Prop({ type: [Country] })
+  @Prop({ type: [Country], default: [] })
   countries: Country[];
 
-  @Prop({ type: [Episode] })
+  @Prop({ type: [Episode], default: [] })
   episodes: Episode[];
 
-  @Prop({ type: Modified })
+  @Prop({ type: Modified, default: {} })
   modified: Modified;
 }
 

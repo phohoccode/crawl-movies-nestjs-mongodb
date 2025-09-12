@@ -1,15 +1,18 @@
 import {
   IsString,
-  IsBoolean,
   IsNumber,
   IsOptional,
   IsArray,
   ValidateNested,
   IsNotEmpty,
+  IsIn,
+  IsBooleanString,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import type { Category, Country } from '../types/movie.type';
+import { CategoriesArray, CountriesArray } from '../constants/movie.contant';
 
-class TmdbDto {
+export class TmdbDto {
   @IsNotEmpty()
   @IsString()
   id: string;
@@ -31,32 +34,44 @@ class TmdbDto {
   vote_count?: number;
 }
 
-class CategoryDto {
-  @IsOptional()
+export class CategoryInputDto {
+  @IsNotEmpty()
   @IsString()
-  id?: string;
+  name: string;
 
-  @IsOptional()
+  @IsNotEmpty()
+  @IsIn(CategoriesArray, {
+    message: `slug must be one of the following values: ${CategoriesArray.join(
+      ', ',
+    )}`,
+  })
   @IsString()
-  name?: string;
-
-  @IsOptional()
-  @IsString()
-  slug?: string;
+  slug: Category;
 }
 
-class CountryDto {
-  @IsOptional()
+export class CategoryDto extends CategoryInputDto {
   @IsString()
-  id?: string;
+  id: string;
+}
 
-  @IsOptional()
+export class CountryInputDto {
+  @IsNotEmpty()
   @IsString()
-  name?: string;
+  name: string;
 
-  @IsOptional()
+  @IsNotEmpty()
+  @IsIn(CountriesArray, {
+    message: `slug must be one of the following values: ${CountriesArray.join(
+      ', ',
+    )}`,
+  })
   @IsString()
-  slug?: string;
+  slug: Country;
+}
+
+export class CountryDto extends CountryInputDto {
+  @IsString()
+  id: string;
 }
 
 class EpisodeDataDto {
@@ -81,7 +96,7 @@ class EpisodeDataDto {
   link_m3u8?: string;
 }
 
-class EpisodeDto {
+export class EpisodeDto {
   @IsOptional()
   @IsString()
   server_name?: string;
@@ -93,14 +108,10 @@ class EpisodeDto {
 }
 
 export class CreateMovieDto {
-  @IsOptional()
+  @IsNotEmpty()
   @ValidateNested()
   @Type(() => TmdbDto)
-  tmdb?: TmdbDto;
-
-  @IsNotEmpty()
-  @IsString()
-  movie_id: string;
+  tmdb: TmdbDto;
 
   @IsNotEmpty()
   @IsString()
@@ -110,29 +121,58 @@ export class CreateMovieDto {
   @IsString()
   name: string;
 
-  @IsOptional()
+  @IsNotEmpty()
   @IsString()
-  origin_name?: string;
+  origin_name: string;
+
+  @IsNotEmpty()
+  @IsString()
+  type: string;
+
+  @IsNotEmpty()
+  @IsString()
+  poster_url: string;
+
+  @IsNotEmpty()
+  @IsString()
+  thumb_url: string;
+
+  @IsNotEmpty()
+  @IsString()
+  quality: string;
+
+  @IsNotEmpty()
+  @IsString()
+  lang: string;
+
+  @IsNotEmpty()
+  @IsNumber()
+  @Type(() => Number)
+  year: number;
+
+  @IsNotEmpty()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CategoryInputDto)
+  categories: CategoryInputDto[];
+
+  @IsNotEmpty()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CountryInputDto)
+  countries: CountryInputDto[];
 
   @IsOptional()
-  @IsBoolean()
-  is_cinema: boolean;
+  @IsBooleanString()
+  is_cinema: string;
 
   @IsOptional()
   @IsString()
   content?: string;
 
-  @IsNotEmpty()
-  @IsString()
-  type?: string;
-
   @IsOptional()
-  @IsString()
-  poster_url?: string;
-
-  @IsOptional()
-  @IsString()
-  thumb_url?: string;
+  @IsBooleanString()
+  sub_docquyen?: string;
 
   @IsOptional()
   @IsString()
@@ -150,19 +190,7 @@ export class CreateMovieDto {
   @IsString()
   episode_total?: string;
 
-  @IsOptional()
-  @IsString()
-  quality?: string;
-
-  @IsOptional()
-  @IsString()
-  lang?: string;
-
-  @IsOptional()
-  @IsNumber()
-  @Type(() => Number)
-  year?: number;
-
+  @IsNotEmpty()
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
@@ -172,18 +200,6 @@ export class CreateMovieDto {
   @IsArray()
   @IsString({ each: true })
   directors?: string[];
-
-  @IsOptional()
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => CategoryDto)
-  categories?: CategoryDto[];
-
-  @IsOptional()
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => CountryDto)
-  countries?: CountryDto[];
 
   @IsOptional()
   @IsArray()

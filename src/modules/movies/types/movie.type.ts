@@ -21,7 +21,9 @@ export type Category =
   | 'khoa-hoc'
   | 'than-thoai'
   | 'chinh-kich'
-  | 'kinh-dien';
+  | 'kinh-dien'
+  | 'mien-tay'
+  | 'tre-em';
 
 export type Country =
   | 'viet-nam'
@@ -58,7 +60,8 @@ export type Country =
   | 'uc'
   | 'brazil'
   | 'y'
-  | 'na-uy';
+  | 'na-uy'
+  | 'nam-phi';
 
 export type MovieType =
   | 'phim-le'
@@ -73,3 +76,8 @@ export type MovieType =
   | 'latest';
 
 export type Language = 'long-tieng' | 'thuyet-minh' | 'vietsub';
+export interface IBaseItem {
+  id: string;
+  name: string;
+  slug: Country | Category;
+}
