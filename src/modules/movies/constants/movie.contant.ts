@@ -1,4 +1,4 @@
-import { Category, Country, IBaseItem, MovieType } from '../types/movie.type';
+import { Category, Country, MovieType } from '../types/movie.type';
 
 export const MOVIE_TYPE: MovieType[] = [
   'phim-le',
@@ -167,7 +167,11 @@ export const generateMetaData: Partial<
   ]),
 );
 
-export const CountriesArrayWithAll: IBaseItem[] = [
+export const CountriesArrayWithAll: {
+  id: string;
+  name: string;
+  slug: Country;
+}[] = [
   {
     id: 'f6ce1ae8b39af9d38d653b8a0890adb8',
     name: 'Việt Nam',
@@ -350,7 +354,11 @@ export const CountriesArrayWithAll: IBaseItem[] = [
   },
 ];
 
-export const CategoriesArrayWithAll: IBaseItem[] = [
+export const CategoriesArrayWithAll: {
+  id: string;
+  name: string;
+  slug: Category;
+}[] = [
   {
     id: '9822be111d2ccc29c7172c78b8af8ff5',
     name: 'Hành Động',

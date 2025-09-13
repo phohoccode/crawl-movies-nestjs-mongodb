@@ -8,12 +8,8 @@ import {
   IsMongoId,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import {
-  CategoryInputDto,
-  CountryInputDto,
-  TmdbDto,
-  EpisodeDto,
-} from './create-movie.dto';
+import { TmdbDto, EpisodeDto } from './create-movie.dto';
+import { Category, Country } from '../types/movie.type';
 
 export class UpdateMovieDto {
   @IsOptional()
@@ -98,15 +94,13 @@ export class UpdateMovieDto {
 
   @IsOptional()
   @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => CategoryInputDto)
-  categories?: CategoryInputDto[];
+  @IsString({ each: true })
+  categories?: Category[];
 
   @IsOptional()
   @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => CountryInputDto)
-  countries?: CountryInputDto[];
+  @IsString({ each: true })
+  countries?: Country[];
 
   @IsOptional()
   @IsArray()
@@ -116,8 +110,6 @@ export class UpdateMovieDto {
 }
 
 export class ParamsUpdateMovie {
-  @IsMongoId({
-    message: 'id không đúng định dạng',
-  })
+  @IsMongoId({ message: 'id không đúng định dạng' })
   id: string;
 }

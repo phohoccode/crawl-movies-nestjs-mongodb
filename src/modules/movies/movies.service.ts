@@ -33,10 +33,10 @@ import {
   generateMetaDataFn,
   getValueByPromiseAllSettled,
   mapCountriesOrCategories,
+  mapEpisodesToEpisodeDataDto,
 } from '@/helpers/utils';
 import { SearchMoviesDto } from './dto/search-movies.dto';
 import { CreateMovieDto } from './dto/create-movie.dto';
-
 @Injectable()
 export class MoviesService {
   constructor(
@@ -286,21 +286,110 @@ export class MoviesService {
     }
   }
 
+  async createMovie(createMovieDto: CreateMovieDto) {
+    try {
+      const movieExist = await this.movieModel.find({
+        $or: [{ slug: createMovieDto.slug }],
+      });
+
+      if (movieExist.length > 0) {
+        throw new ConflictException('Phim đã tồn tại trong hệ thống');
+      }
+
+      const { categories, countries, episodes, ...remainingData } =
+        createMovieDto;
+
+      // fomat lại categories và countries theo schema
+      const finalCategories = mapCountriesOrCategories(categories, 'category');
+      const finalCountries = mapCountriesOrCategories(countries, 'country');
+
+      // fomat lại episodes theo schema
+      const finalEpisodes = mapEpisodesToEpisodeDataDto(
+        episodes || [],
+        createMovieDto.name,
+      );
+
+      // tổng hợp data cuối cùng để tạo mới
+      const finalData = {
+        movie_id: uuidv4(),
+        categories: finalCategories,
+        countries: finalCountries,
+        episodes: finalEpisodes || [],
+        ...remainingData,
+      };
+
+      const newMovie = await this.movieModel.create(finalData);
+
+      return {
+        status: true,
+        message: 'Thành công!',
+        data: {
+          movie: newMovie,
+        },
+      };
+    } catch (error) {
+      console.log(error);
+
+      if (error instanceof ConflictException) {
+        throw error;
+      }
+
+      throw new InternalServerErrorException(INTERNAL_SERVER_ERROR);
+    }
+  }
+
   async updateInfoMovieById(id: string, dataUpdate: UpdateMovieDto) {
     try {
+      const movieExist = await this.movieModel.findById(id);
+
+      if (!movieExist) {
+        throw new NotFoundException(NOT_FOUND_ERROR);
+      }
+
+      const { categories, countries, episodes, ...remainingData } = dataUpdate;
+
+      // nếu có categories truyền vào thì fomat lại còn không thì giữ nguyên
+      const finalCategories =
+        categories && categories.length > 0
+          ? mapCountriesOrCategories(categories, 'category')
+          : movieExist.categories;
+
+      // nếu có countries truyền vào thì fomat lại còn không thì giữ nguyên
+      const finalCountries =
+        countries && countries.length > 0
+          ? mapCountriesOrCategories(countries, 'country')
+          : movieExist.countries;
+
+      // nếu có episodes truyền vào thì fomat lại còn không thì giữ nguyên
+      const finalEpisodes =
+        episodes && episodes.length > 0
+          ? mapEpisodesToEpisodeDataDto(
+              episodes,
+              dataUpdate.name || movieExist.name, // nếu có đổi tên phim thì lấy tên mới để map
+            )
+          : movieExist.episodes;
+
+      // tổng hợp data cuối cùng để update
+      const finalData = {
+        categories: finalCategories,
+        countries: finalCountries,
+        episodes: finalEpisodes,
+        ...remainingData,
+      };
+
       const movie = await this.movieModel.findByIdAndUpdate(
         id,
         {
           $set: {
-            'modified.time': new Date().toISOString(),
-            ...dataUpdate,
+            'modified.time': new Date().toISOString(), // cập nhật lại thời gian chỉnh sửa
+            ...finalData,
           },
         },
-        { new: true }, // trả về document sau khi đã cập nhật}
+        { new: true }, // trả về document sau khi update
       );
 
       if (!movie) {
-        throw new NotFoundException(NOT_FOUND_ERROR);
+        throw new InternalServerErrorException(INTERNAL_SERVER_ERROR);
       }
 
       return {
@@ -398,51 +487,6 @@ export class MoviesService {
       };
     } catch (error) {
       console.log(error);
-      throw new InternalServerErrorException(INTERNAL_SERVER_ERROR);
-    }
-  }
-
-  async createMovie(createMovieDto: CreateMovieDto) {
-    try {
-      const movieExist = await this.movieModel.find({
-        $or: [{ slug: createMovieDto.slug }],
-      });
-
-      if (movieExist.length > 0) {
-        throw new ConflictException('Phim đã tồn tại trong hệ thống');
-      }
-
-      const countries = mapCountriesOrCategories(
-        createMovieDto.countries,
-        'country',
-      );
-      const categories = mapCountriesOrCategories(
-        createMovieDto.categories,
-        'category',
-      );
-
-      createMovieDto.countries = countries;
-      createMovieDto.categories = categories;
-
-      const newMovie = await this.movieModel.create({
-        movie_id: uuidv4(),
-        ...createMovieDto,
-      });
-
-      return {
-        status: true,
-        message: 'Thành công!',
-        data: {
-          movie: newMovie,
-        },
-      };
-    } catch (error) {
-      console.log(error);
-
-      if (error instanceof ConflictException) {
-        throw error;
-      }
-
       throw new InternalServerErrorException(INTERNAL_SERVER_ERROR);
     }
   }

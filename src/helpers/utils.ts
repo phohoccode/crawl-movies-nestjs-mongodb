@@ -7,12 +7,13 @@ import {
   CountriesArrayWithAll,
   generateMetaData,
 } from '@/modules/movies/constants/movie.contant';
-import { CategoryDto, CountryDto } from '@/modules/movies/dto/create-movie.dto';
+import { EpisodeDto } from '@/modules/movies/dto/create-movie.dto';
 import {
   Category,
   Country,
   MovieType,
 } from '@/modules/movies/types/movie.type';
+import slugify from 'slugify';
 
 /**
  *
@@ -189,26 +190,60 @@ export function normalize(str: string) {
 }
 
 export function mapCountriesOrCategories(
-  items: { name: string; slug: string }[],
+  slugs: Country[],
   type: 'country',
-): CountryDto[];
+): {
+  id: string;
+  name: string;
+  slug: Country;
+}[];
 export function mapCountriesOrCategories(
-  items: { name: string; slug: string }[],
+  slugs: Category[],
   type: 'category',
-): CategoryDto[];
+): {
+  id: string;
+  name: string;
+  slug: Category;
+}[];
 export function mapCountriesOrCategories(
-  items: { name: string; slug: string }[],
+  slugs: (Country | Category)[],
   type: 'country' | 'category',
 ) {
-  return items.map((item) => {
+  const arrayToMap =
+    type === 'country' ? CountriesArrayWithAll : CategoriesArrayWithAll;
+
+  return slugs.map((slug) => {
+    const item = arrayToMap.find((item) => item.slug === slug);
+    return item || { id: '', name: 'Unknown', slug };
+  });
+}
+
+export function generateSlug(name: string) {
+  return slugify(name, {
+    lower: true, // viết thường hết
+    strict: true, // bỏ ký tự đặc biệt
+    locale: 'vi', // hỗ trợ tiếng Việt
+  });
+}
+
+export function mapEpisodesToEpisodeDataDto(
+  episodes: EpisodeDto[],
+  movieName: string,
+) {
+  return episodes?.map((ep) => {
+    const serverData = ep.server_data?.map((server) => {
+      return {
+        name: server.name,
+        link_m3u8: server.link_m3u8,
+        slug: generateSlug(server.name || 'unknown'),
+        filename: `${movieName} - ${server.name}`,
+        link_embed: `https://player.phimapi.com/player/?url=${server.link_m3u8}`,
+      };
+    });
+
     return {
-      id:
-        (type === 'country'
-          ? CountriesArrayWithAll
-          : CategoriesArrayWithAll
-        ).find((x) => x.slug === item.slug)?.id || '',
-      name: item.name,
-      slug: item.slug,
+      server_name: ep.server_name,
+      server_data: serverData || [],
     };
   });
 }
