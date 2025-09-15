@@ -10,13 +10,13 @@ import {
 import { Type } from 'class-transformer';
 import type { Category, Country } from '../types/movie.type';
 export class TmdbDto {
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  id: string;
+  id?: string;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  type: string;
+  type?: string;
 
   @IsOptional()
   @IsNumber()
@@ -53,7 +53,7 @@ export class EpisodeDto {
 }
 
 export class CreateMovieDto {
-  @IsNotEmpty()
+  @IsOptional()
   @ValidateNested()
   @Type(() => TmdbDto)
   tmdb: TmdbDto;

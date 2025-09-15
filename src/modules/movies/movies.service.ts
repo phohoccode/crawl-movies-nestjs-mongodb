@@ -29,6 +29,7 @@ import {
   CrawlStatusDocument,
 } from '../crawl/schemas/crawl-status.schema';
 import {
+  filterNonEmptyStrings,
   generateImageFromMovies,
   generateMetaDataFn,
   getValueByPromiseAllSettled,
@@ -296,12 +297,24 @@ export class MoviesService {
         throw new ConflictException('Phim đã tồn tại trong hệ thống');
       }
 
-      const { categories, countries, episodes, ...remainingData } =
-        createMovieDto;
+      const {
+        categories,
+        countries,
+        episodes,
+        actors,
+        directors,
+        ...remainingData
+      } = createMovieDto;
 
       // fomat lại categories và countries theo schema
       const finalCategories = mapCountriesOrCategories(categories, 'category');
       const finalCountries = mapCountriesOrCategories(countries, 'country');
+
+      // fomat lại actors theo schema
+      const finalActors = filterNonEmptyStrings(actors);
+
+      // fomat lại directors theo schema
+      const finalDirectors = filterNonEmptyStrings(directors);
 
       // fomat lại episodes theo schema
       const finalEpisodes = mapEpisodesToEpisodeDataDto(
@@ -315,6 +328,8 @@ export class MoviesService {
         categories: finalCategories,
         countries: finalCountries,
         episodes: finalEpisodes || [],
+        actors: finalActors || [],
+        directors: finalDirectors || [],
         ...remainingData,
       };
 
@@ -346,7 +361,14 @@ export class MoviesService {
         throw new NotFoundException(NOT_FOUND_ERROR);
       }
 
-      const { categories, countries, episodes, ...remainingData } = dataUpdate;
+      const {
+        categories,
+        countries,
+        episodes,
+        actors,
+        directors,
+        ...remainingData
+      } = dataUpdate;
 
       // nếu có categories truyền vào thì fomat lại còn không thì giữ nguyên
       const finalCategories =
@@ -359,6 +381,12 @@ export class MoviesService {
         countries && countries.length > 0
           ? mapCountriesOrCategories(countries, 'country')
           : movieExist.countries;
+
+      // fomat lại actors theo schema
+      const finalActors = filterNonEmptyStrings(actors);
+
+      // fomat lại directors theo schema
+      const finalDirectors = filterNonEmptyStrings(directors);
 
       // nếu có episodes truyền vào thì fomat lại còn không thì giữ nguyên
       const finalEpisodes =
@@ -374,6 +402,8 @@ export class MoviesService {
         categories: finalCategories,
         countries: finalCountries,
         episodes: finalEpisodes,
+        actors: finalActors,
+        directors: finalDirectors,
         ...remainingData,
       };
 

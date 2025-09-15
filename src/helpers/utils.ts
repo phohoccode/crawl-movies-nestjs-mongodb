@@ -230,20 +230,32 @@ export function mapEpisodesToEpisodeDataDto(
   episodes: EpisodeDto[],
   movieName: string,
 ) {
-  return episodes?.map((ep) => {
-    const serverData = ep.server_data?.map((server) => {
-      return {
+  const episodesFormatted = episodes?.filter(
+    (ep) => ep.server_name && ep.server_data && ep?.server_data?.length > 0,
+  );
+
+  return episodesFormatted?.map((ep) => {
+    const serverDataFormatted = ep.server_data?.filter(
+      (server) => server.name && server.link_m3u8,
+    );
+
+    const finalServerData =
+      serverDataFormatted?.map((server) => ({
         name: server.name,
         link_m3u8: server.link_m3u8,
         slug: generateSlug(server.name || 'unknown'),
         filename: `${movieName} - ${server.name}`,
         link_embed: `https://player.phimapi.com/player/?url=${server.link_m3u8}`,
-      };
-    });
+      })) || [];
 
     return {
       server_name: ep.server_name,
-      server_data: serverData || [],
+      server_data: finalServerData,
     };
   });
+}
+
+export function filterNonEmptyStrings(arr?: string[]): string[] {
+  if (!arr) return [];
+  return arr.filter((str) => str && str.trim() !== '');
 }

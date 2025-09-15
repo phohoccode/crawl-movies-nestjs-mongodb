@@ -10,9 +10,6 @@ export type MovieDocument = HydratedDocument<Movie>;
 
 @Schema({ collection: 'movies' })
 export class Movie {
-  @Prop({ type: Tmdb, required: true })
-  tmdb: Tmdb;
-
   @Prop({ type: String, required: true, unique: true })
   movie_id: string;
 
@@ -21,6 +18,9 @@ export class Movie {
 
   @Prop({ type: String, required: true })
   name: string;
+
+  @Prop({ type: Tmdb })
+  tmdb: Tmdb;
 
   @Prop({ type: String })
   origin_name: string;

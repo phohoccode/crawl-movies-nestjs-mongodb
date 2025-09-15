@@ -5,10 +5,10 @@ export type TmdbDocument = HydratedDocument<Tmdb>;
 
 @Schema({ _id: false })
 export class Tmdb {
-  @Prop({ type: String, required: true })
+  @Prop({ type: String })
   type: string;
 
-  @Prop({ type: String, required: true })
+  @Prop({ type: String })
   id: string;
 
   @Prop({ type: Number })
