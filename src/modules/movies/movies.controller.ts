@@ -18,6 +18,7 @@ import { QueryBasicDto } from './dto/query-basic.dto';
 import { ParamsUpdateMovie, UpdateMovieDto } from './dto/update-movie.dto';
 import { DeleteMoviesDto } from './dto/delete-movies.dto';
 import { CreateMovieDto } from './dto/create-movie.dto';
+import { Throttle } from '@nestjs/throttler';
 
 @Controller('movies')
 export class MoviesController {
@@ -28,11 +29,13 @@ export class MoviesController {
     return await this.moviesService.getMoviesStats();
   }
 
+  @Throttle({ short: {} })
   @Get('search')
   async searchMovies(@Query() searchMovieDto: SearchMoviesDto) {
     return this.moviesService.searchMovies(searchMovieDto);
   }
 
+  @Throttle({ long: {} })
   @Get(':type')
   async getMovies(
     @Param() params: GetMoviesDto,
@@ -45,11 +48,13 @@ export class MoviesController {
     );
   }
 
+  @Throttle({ short: {} })
   @Get('info/:slug')
   async getMovieBySlug(@Param() getMovieBySlugDto: GetMovieBySlugDto) {
     return this.moviesService.getMovieBySlug(getMovieBySlugDto.slug);
   }
 
+  @Throttle({ short: {} })
   @Get('year/:year')
   async getMoviesByYear(
     @Param('year') year: string,
@@ -62,6 +67,7 @@ export class MoviesController {
     );
   }
 
+  @Throttle({ medium: {} })
   @Patch(':id')
   async updateInfoMovie(
     @Param() params: ParamsUpdateMovie,
@@ -70,11 +76,13 @@ export class MoviesController {
     return await this.moviesService.updateInfoMovieById(params.id, dataUpdate);
   }
 
+  @Throttle({ medium: {} })
   @Delete()
   async deleteMovies(@Body() deleteMoviesDto: DeleteMoviesDto) {
     return await this.moviesService.deleteMoviesByIds(deleteMoviesDto.ids);
   }
 
+  @Throttle({ medium: {} })
   @Post('new-movie')
   async createMovie(@Body() createMovieDto: CreateMovieDto) {
     return await this.moviesService.createMovie(createMovieDto);
