@@ -19,22 +19,26 @@ import { ParamsUpdateMovie, UpdateMovieDto } from './dto/update-movie.dto';
 import { DeleteMoviesDto } from './dto/delete-movies.dto';
 import { CreateMovieDto } from './dto/create-movie.dto';
 import { Throttle } from '@nestjs/throttler';
+import { Public } from '@/auth/passport/public.decorator';
 
 @Controller('movies')
 export class MoviesController {
   constructor(private readonly moviesService: MoviesService) {}
 
+  @Public()
   @Get('stats')
   async getMoviesStats() {
     return await this.moviesService.getMoviesStats();
   }
 
+  @Public()
   @Throttle({ short: {} })
   @Get('search')
   async searchMovies(@Query() searchMovieDto: SearchMoviesDto) {
     return this.moviesService.searchMovies(searchMovieDto);
   }
 
+  @Public()
   @Throttle({ long: {} })
   @Get(':type')
   async getMovies(
@@ -48,12 +52,14 @@ export class MoviesController {
     );
   }
 
+  @Public()
   @Throttle({ short: {} })
   @Get('info/:slug')
   async getMovieBySlug(@Param() getMovieBySlugDto: GetMovieBySlugDto) {
     return this.moviesService.getMovieBySlug(getMovieBySlugDto.slug);
   }
 
+  @Public()
   @Throttle({ short: {} })
   @Get('year/:year')
   async getMoviesByYear(

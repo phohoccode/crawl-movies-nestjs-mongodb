@@ -7,7 +7,9 @@ import { MoviesModule } from '@/modules/movies/movies.module';
 import { CrawlModule } from './modules/crawl/crawl.module';
 import { APP_GUARD } from '@nestjs/core/constants';
 import { ThrottlerModule } from '@nestjs/throttler';
-import { ThrottlerCustomGuard } from './common/guards/throttler-custom.guard';
+import { ThrottlerCustomGuard } from './auth/throttler/throttler-custom.guard';
+import { AuthModule } from './auth/auth.module';
+import { JwtAuthGuard } from './auth/passport/jwt-auth.guard';
 
 @Module({
   imports: [
@@ -22,7 +24,9 @@ import { ThrottlerCustomGuard } from './common/guards/throttler-custom.guard';
     }),
     MoviesModule,
     CrawlModule,
+    AuthModule,
 
+    // cấu hình rate limit toàn ứng dụng
     ThrottlerModule.forRoot([
       {
         name: 'short',
@@ -49,6 +53,12 @@ import { ThrottlerCustomGuard } from './common/guards/throttler-custom.guard';
     {
       provide: APP_GUARD,
       useClass: ThrottlerCustomGuard,
+    },
+
+    // Cấu hình bảo mật toàn ứng dụng với JWT
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
     },
   ],
 })

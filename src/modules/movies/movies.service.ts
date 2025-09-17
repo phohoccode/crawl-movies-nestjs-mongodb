@@ -444,16 +444,24 @@ export class MoviesService {
     try {
       const result = await this.movieModel.deleteMany({ _id: { $in: ids } });
 
+      if (result.deletedCount === 0) {
+        throw new NotFoundException(NOT_FOUND_ERROR);
+      }
+
       return {
         status: true,
         message: 'Thành công',
         data: {
           ids: ids,
-          deletedCount: result.deletedCount,
         },
       };
     } catch (error) {
       console.log(error);
+
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+
       throw new InternalServerErrorException(INTERNAL_SERVER_ERROR);
     }
   }

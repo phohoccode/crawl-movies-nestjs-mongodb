@@ -17,6 +17,7 @@ async function bootstrap() {
   app.setGlobalPrefix(`api/${apiVersion}`, {
     exclude: [
       '',
+      '/healthz',
       {
         path: '/crawl/*path',
         method: RequestMethod.ALL,
