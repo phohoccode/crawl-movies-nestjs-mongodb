@@ -14,6 +14,7 @@ import {
   MovieType,
 } from '@/modules/movies/types/movie.type';
 import slugify from 'slugify';
+import * as bcrypt from 'bcrypt';
 
 /**
  *
@@ -258,4 +259,14 @@ export function mapEpisodesToEpisodeDataDto(
 export function filterNonEmptyStrings(arr?: string[]): string[] {
   if (!arr) return [];
   return arr.filter((str) => str && str.trim() !== '');
+}
+
+export async function hashPassword(password: string): Promise<string> {
+  try {
+    const salt = await bcrypt.genSalt(10); // 10 rounds
+    return await bcrypt.hash(password, salt);
+  } catch (error) {
+    console.log('Lỗi hash mật khẩu:', error);
+    return password;
+  }
 }
